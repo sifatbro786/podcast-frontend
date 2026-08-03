@@ -1,29 +1,31 @@
-// src/router/ProtectedRoute.jsx
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../context/AuthContext";
+
+function BrandSpinner() {
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface text-content">
+            <div className="relative h-14 w-14">
+                <span className="absolute inset-0 rounded-full border-2 border-border-subtle" />
+                <span className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-brand-orange" />
+            </div>
+            <p className="text-xs font-bold uppercase tracking-[0.35em] text-content-muted">
+                Mission
+            </p>
+        </div>
+    );
+}
 
 export default function ProtectedRoute({ children, requireAuth = true, requireAdmin = false }) {
-    const { user, loading } = useAuth();
+    const { user, isLoading } = useAuth();
     const location = useLocation();
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-600"></div>
-            </div>
-        );
-    }
+    if (isLoading) return <BrandSpinner />;
 
-    // If authentication is required and user is not logged in
     if (requireAuth && !user) {
-        // Save the current location to redirect back after login
         return <Navigate to="/login" state={{ from: location.pathname }} replace />;
     }
-
-    // If admin is required and user is not admin
     if (requireAdmin && (!user || (user.role !== "admin" && user.role !== "super_admin"))) {
         return <Navigate to="/" replace />;
     }
-
     return children;
 }

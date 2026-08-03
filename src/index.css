@@ -1,9 +1,12 @@
 @import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap");
 
 @import "tailwindcss";
 
 @theme {
     --font-sans: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-serif:
+        "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
     /* Brand Specific Colors */
     --color-brand-orange: #ff5722;
@@ -23,6 +26,30 @@
     --color-light-border: #e2e8f0;
     --color-light-text: #0f172a;
     --color-light-muted: #64748b;
+}
+
+:root {
+    --surface: var(--color-dark-bg);
+    --surface-raised: var(--color-dark-card);
+    --border-subtle: var(--color-dark-border);
+    --content: var(--color-dark-text);
+    --content-muted: var(--color-dark-muted);
+}
+
+.light {
+    --surface: var(--color-light-bg);
+    --surface-raised: var(--color-light-card);
+    --border-subtle: var(--color-light-border);
+    --content: var(--color-light-text);
+    --content-muted: var(--color-light-muted);
+}
+
+@theme inline {
+    --color-surface: var(--surface);
+    --color-surface-raised: var(--surface-raised);
+    --color-content: var(--content);
+    --color-content-muted: var(--content-muted);
+    --color-border-subtle: var(--border-subtle);
 }
 
 /* Custom CSS Rules & Theme Classes */
@@ -46,4 +73,47 @@ body {
 .light body {
     background-color: var(--color-light-bg);
     color: var(--color-light-text);
+}
+
+/* -------------------------------------------------------------
+   1. Text Selection Color (Brand Orange Background + White Text)
+---------------------------------------------------------------- */
+::selection {
+    background-color: var(--color-brand-orange);
+    color: #ffffff;
+}
+
+::-moz-selection {
+    background-color: var(--color-brand-orange);
+    color: #ffffff;
+}
+
+/* -------------------------------------------------------------
+   2. Custom Scrollbar Styling (Vertical & Horizontal)
+---------------------------------------------------------------- */
+/* Scrollbar Track Size */
+::-webkit-scrollbar {
+    width: 8px; /* Vertical scrollbar width */
+    height: 8px; /* Horizontal scrollbar height */
+}
+
+/* Track Background (Dark/Light mode native) */
+::-webkit-scrollbar-track {
+    background: var(--color-dark-bg);
+}
+
+.light ::-webkit-scrollbar-track {
+    background: var(--color-light-bg);
+}
+
+/* Scrollbar Thumb (Brand Orange Slider) */
+::-webkit-scrollbar-thumb {
+    background: var(--color-brand-orange);
+    border-radius: 9999px; /* Rounded pill shape */
+    transition: background 0.2s ease;
+}
+
+/* Hover effect on scrollbar thumb */
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-brand-orange-hover);
 }
