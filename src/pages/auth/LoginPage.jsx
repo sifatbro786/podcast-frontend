@@ -1,49 +1,58 @@
-import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+// src/pages/auth/LoginPage.jsx
+// v2 — "Console Unlock". The brand-panel-left / form-right split is gone.
+// One full-viewport stage: HUD corners, a live signal horizon behind the
+// form, oversized underline-only inputs, and a clipped ghost wordmark.
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { ArrowRight, Eye, EyeOff, Loader2, Radio } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-const STATS = [
-    { k: "10+", v: "Years scaling shows" },
-    { k: "2", v: "Apple + Spotify charts" },
-    { k: "3 Day", v: "Free visibility test" },
-];
+const prefersReduced = () =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const GRID_BG = {
-    backgroundImage:
-        "linear-gradient(var(--content) 1px,transparent 1px),linear-gradient(90deg,var(--content) 1px,transparent 1px)",
-    backgroundSize: "40px 40px",
-};
-
-function Waveform() {
+/** Full-width signal horizon behind the form — quiet until the form wakes it. */
+function SignalHorizon({ excited }) {
     const ref = useRef(null);
+    const tween = useRef(null);
+
     useGSAP(
         () => {
-            const bars = ref.current.querySelectorAll("span");
-            gsap.to(bars, {
-                scaleY: () => 0.25 + Math.random() * 0.9,
+            if (prefersReduced()) return;
+            tween.current = gsap.to(ref.current.children, {
+                scaleY: () => 0.15 + Math.random() * 0.85,
                 duration: 0.5,
                 ease: "sine.inOut",
                 repeat: -1,
                 yoyo: true,
+                repeatRefresh: true,
                 transformOrigin: "center",
-                stagger: { each: 0.06, from: "center" },
+                stagger: { each: 0.03, from: "random" },
             });
         },
         { scope: ref },
     );
 
+    /* Typing/focus in the form raises the signal's energy */
+    useEffect(() => {
+        if (!tween.current) return;
+        gsap.to(tween.current, { timeScale: excited ? 2.2 : 1, duration: 0.6 });
+    }, [excited]);
+
     return (
-        <div ref={ref} className="flex h-24 items-center gap-1.5">
-            {Array.from({ length: 40 }).map((_, i) => (
+        <div
+            ref={ref}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-1/2 flex h-40 -translate-y-1/2 items-center gap-1 opacity-[0.13]"
+        >
+            {Array.from({ length: 72 }).map((_, i) => (
                 <span
                     key={i}
-                    className="h-full w-1 flex-1 origin-center bg-brand-orange/70"
-                    style={{ transform: "scaleY(0.3)" }}
+                    className="h-full flex-1 origin-center bg-brand-orange"
+                    style={{ transform: "scaleY(0.25)" }}
                 />
             ))}
         </div>
@@ -53,6 +62,7 @@ function Waveform() {
 function MagneticButton({ children, ...props }) {
     const ref = useRef(null);
     const onMove = (e) => {
+        if (prefersReduced()) return;
         const r = ref.current.getBoundingClientRect();
         gsap.to(ref.current, {
             x: (e.clientX - r.left - r.width / 2) * 0.3,
@@ -70,6 +80,41 @@ function MagneticButton({ children, ...props }) {
     );
 }
 
+/* Oversized underline-only field — no boxes anywhere on this page. */
+function UnderlineField({ label, error, right, children }) {
+    return (
+        <div data-reveal>
+            <div className="flex items-baseline justify-between">
+                <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-content-muted">
+                    {label}
+                </label>
+                {right}
+            </div>
+            <div
+                className={`relative mt-1 border-b-2 transition-colors duration-300 ${
+                    error
+                        ? "border-red-500"
+                        : "border-border-subtle focus-within:border-brand-orange"
+                }`}
+            >
+                {children}
+            </div>
+            <p
+                role="alert"
+                className={`mt-1.5 min-h-4 text-xs font-semibold text-red-500 ${
+                    error ? "" : "invisible"
+                }`}
+            >
+                {error?.message || "\u00A0"}
+            </p>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
+
 export default function LoginPage() {
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -77,7 +122,9 @@ export default function LoginPage() {
     const from = location.state?.from || "/admin";
 
     const [showPw, setShowPw] = useState(false);
-    const formRef = useRef(null);
+    const [excited, setExcited] = useState(false);
+    const [shakeKey, setShakeKey] = useState(0);
+    const rootRef = useRef(null);
 
     const {
         register,
@@ -87,15 +134,35 @@ export default function LoginPage() {
 
     useGSAP(
         () => {
-            gsap.from(formRef.current.querySelectorAll("[data-reveal]"), {
-                y: 24,
-                opacity: 0,
-                duration: 0.7,
-                ease: "power3.out",
-                stagger: 0.09,
-            });
+            if (prefersReduced()) return;
+            const q = gsap.utils.selector(rootRef);
+            gsap.timeline({ defaults: { ease: "power3.out" } })
+                .from(q("[data-hud]"), { opacity: 0, duration: 0.9, stagger: 0.08 })
+                .from(
+                    q("[data-reveal]"),
+                    { y: 26, opacity: 0, duration: 0.7, stagger: 0.09 },
+                    "-=0.5",
+                )
+                .from(
+                    q("[data-ghost]"),
+                    { yPercent: 40, opacity: 0, duration: 1.2, ease: "power4.out" },
+                    "-=0.6",
+                );
         },
-        { scope: formRef },
+        { scope: rootRef },
+    );
+
+    // Wrong credentials: the console shakes its head
+    useGSAP(
+        () => {
+            if (shakeKey === 0 || prefersReduced()) return;
+            gsap.fromTo(
+                rootRef.current.querySelector("form"),
+                { x: 0 },
+                { x: 8, duration: 0.07, repeat: 5, yoyo: true, clearProps: "x" },
+            );
+        },
+        { scope: rootRef, dependencies: [shakeKey] },
     );
 
     const onSubmit = async ({ email, password }) => {
@@ -105,72 +172,57 @@ export default function LoginPage() {
             navigate(from, { replace: true });
         } catch (err) {
             toast.error(err?.response?.data?.message || "Login failed");
+            setShakeKey((k) => k + 1);
         }
     };
 
-    return (
-        <div className="grid min-h-screen bg-surface text-content lg:grid-cols-2">
-            <aside className="relative hidden overflow-hidden border-r border-border-subtle bg-dark-bg p-12 lg:flex lg:flex-col lg:justify-between">
-                <div
-                    className="pointer-events-none absolute inset-0 opacity-[0.04]"
-                    style={GRID_BG}
-                />
-                <div className="relative flex items-center gap-2.5 text-white">
-                    <span className="grid h-9 w-9 place-items-center bg-brand-orange">
-                        <Radio size={18} />
-                    </span>
-                    <span className="text-sm font-extrabold uppercase tracking-[0.25em]">
-                        Mission
-                    </span>
-                </div>
-                <div className="relative">
-                    <Waveform />
-                    <h1 className="mt-10 max-w-md text-4xl font-black leading-[1.05] tracking-tight text-white">
-                        We don&apos;t fake charts.
-                        <br />
-                        <span className="text-brand-orange">We climb them.</span>
-                    </h1>
-                    <p className="mt-4 max-w-sm text-sm leading-relaxed text-dark-muted">
-                        The admin console for real, ethical podcast growth — leads, bookings and
-                        campaigns in one place.
-                    </p>
-                </div>
-                <div className="relative grid grid-cols-3 gap-6 border-t border-dark-border pt-8">
-                    {STATS.map((s) => (
-                        <div key={s.k}>
-                            <div className="text-2xl font-black text-white">{s.k}</div>
-                            <div className="mt-1 text-xs font-semibold text-dark-muted">{s.v}</div>
-                        </div>
-                    ))}
-                </div>
-            </aside>
+    const inputClass =
+        "w-full bg-transparent py-3 text-lg font-bold text-content outline-none placeholder:font-medium placeholder:text-content-muted/40";
 
-            <main
-                ref={formRef}
-                className="flex flex-col justify-center px-6 py-16 sm:px-12 lg:px-20"
-            >
-                <div className="mx-auto w-full max-w-sm">
+    return (
+        <div
+            ref={rootRef}
+            className="relative flex min-h-screen flex-col overflow-hidden bg-surface text-content"
+        >
+            <SignalHorizon excited={excited} />
+
+            {/* ---- Center: the unlock ---- */}
+            <main className="relative z-10 flex flex-1 items-center justify-center px-6">
+                <div className="w-full max-w-112.5">
                     <p
                         data-reveal
-                        className="text-xs font-bold uppercase tracking-[0.3em] text-brand-orange"
+                        className="text-[11px] font-bold uppercase tracking-[0.35em] text-brand-orange"
                     >
                         Admin Access
                     </p>
-                    <h2 data-reveal className="mt-3 text-3xl font-black tracking-tight">
-                        Sign in
-                    </h2>
-                    <p data-reveal className="mt-2 text-sm text-content-muted">
-                        Enter your credentials to reach the dashboard.
+                    <h1
+                        data-reveal
+                        className="mt-3 text-4xl font-black font-serif leading-[1.02] tracking-tight sm:text-5xl"
+                    >
+                        Unlock the{" "}
+                        <span className="font-serif font-medium italic tracking-normal text-brand-orange">
+                            console.
+                        </span>
+                    </h1>
+                    <p data-reveal className="mt-4 text-sm leading-relaxed text-content-muted">
+                        We don&apos;t fake charts. We climb them. Sign in to manage leads, bookings
+                        and campaigns.
                     </p>
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="mt-9 space-y-5" noValidate>
-                        <div data-reveal>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-content-muted">
-                                Email
-                            </label>
+                    <form
+                        onSubmit={handleSubmit(onSubmit)}
+                        onFocus={() => setExcited(true)}
+                        onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget)) setExcited(false);
+                        }}
+                        className="mt-10 space-y-4"
+                        noValidate
+                    >
+                        <UnderlineField label="Email" error={errors.email}>
                             <input
                                 type="email"
                                 autoComplete="email"
+                                placeholder="you@agency.com"
                                 {...register("email", {
                                     required: "Email is required",
                                     pattern: {
@@ -178,66 +230,53 @@ export default function LoginPage() {
                                         message: "Enter a valid email",
                                     },
                                 })}
-                                className="w-full border border-border-subtle bg-surface-raised px-4 py-3 text-sm font-medium outline-none transition-colors focus:border-brand-orange"
-                                placeholder="you@agency.com"
+                                className={inputClass}
                             />
-                            {errors.email && (
-                                <p className="mt-1.5 text-xs font-semibold text-red-500">
-                                    {errors.email.message}
-                                </p>
-                            )}
-                        </div>
+                        </UnderlineField>
 
-                        <div data-reveal>
-                            <div className="mb-1.5 flex items-center justify-between">
-                                <label className="block text-xs font-bold uppercase tracking-wider text-content-muted">
-                                    Password
-                                </label>
+                        <UnderlineField
+                            label="Password"
+                            error={errors.password}
+                            right={
                                 <Link
                                     to="/forgot-password"
-                                    className="text-xs font-bold text-brand-orange hover:underline"
+                                    className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-orange hover:underline"
                                 >
                                     Forgot?
                                 </Link>
-                            </div>
-                            <div className="relative">
-                                <input
-                                    type={showPw ? "text" : "password"}
-                                    autoComplete="current-password"
-                                    {...register("password", {
-                                        required: "Password is required",
-                                        minLength: { value: 6, message: "Too short" },
-                                    })}
-                                    className="w-full border border-border-subtle bg-surface-raised px-4 py-3 pr-11 text-sm font-medium outline-none transition-colors focus:border-brand-orange"
-                                    placeholder="••••••••"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPw((s) => !s)}
-                                    className="absolute inset-y-0 right-0 grid w-11 place-items-center text-content-muted hover:text-content"
-                                    aria-label={showPw ? "Hide password" : "Show password"}
-                                >
-                                    {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-                                </button>
-                            </div>
-                            {errors.password && (
-                                <p className="mt-1.5 text-xs font-semibold text-red-500">
-                                    {errors.password.message}
-                                </p>
-                            )}
-                        </div>
+                            }
+                        >
+                            <input
+                                type={showPw ? "text" : "password"}
+                                autoComplete="current-password"
+                                placeholder="••••••••"
+                                {...register("password", {
+                                    required: "Password is required",
+                                    minLength: { value: 6, message: "Too short" },
+                                })}
+                                className={`${inputClass} pr-11`}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPw((s) => !s)}
+                                className="absolute inset-y-0 right-0 grid w-11 place-items-center text-content-muted transition-colors hover:text-content"
+                                aria-label={showPw ? "Hide password" : "Show password"}
+                            >
+                                {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                            </button>
+                        </UnderlineField>
 
-                        <div data-reveal>
+                        <div data-reveal className="pt-2">
                             <MagneticButton
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="group flex w-full items-center justify-center gap-2 bg-brand-orange px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
+                                className="group flex w-full items-center justify-center gap-2 bg-brand-orange px-6 py-4 text-sm font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
                             >
                                 {isSubmitting ? (
                                     <Loader2 className="animate-spin" size={18} />
                                 ) : (
                                     <>
-                                        Sign in{" "}
+                                        Sign in
                                         <ArrowRight
                                             size={17}
                                             className="transition-transform group-hover:translate-x-1"

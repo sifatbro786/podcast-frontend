@@ -171,7 +171,7 @@ export default function ServicesSection() {
             ref={rootRef}
             id="services"
             aria-label="What we do"
-            className="overflow-hidden bg-surface py-15 sm:py-24"
+            className="overflow-hidden bg-surface py-15 sm:py-24 sm:pt-36"
         >
             <div className="mx-auto max-w-7xl px-5 md:px-8">
                 {/* ---- Header: badge + heading left, subhead pinned right-bottom ---- */}
@@ -183,7 +183,7 @@ export default function ServicesSection() {
                         </p>
                         <h2 className="mt-5 font-serif text-4xl font-black leading-[1.05] tracking-tight text-content sm:text-5xl lg:text-6xl">
                             <SplitWords text="Everything your podcast needs to" />
-                            <br />
+                            
                             <SplitWords
                                 text="move forward."
                                 className="font-serif font-medium italic tracking-normal text-brand-orange"

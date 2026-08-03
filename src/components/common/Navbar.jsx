@@ -200,7 +200,7 @@ export default function Navbar() {
                         aria-label="Mission Podcast Growth — home"
                         className="group flex items-center gap-2.5 transition-[filter] duration-300 hover:drop-shadow-[0_0_12px_rgba(255,87,34,0.5)]"
                     >
-                        <img src="/logo.png" alt="logo" className="h-18 w-18 object-cover" />
+                        <img src="/logo.png" alt="logo" className="h-20 w-20 object-cover" />
                     </Link>
 
                     {/* Desktop links — dot indicator + center-out underline */}
