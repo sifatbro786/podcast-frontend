@@ -109,7 +109,7 @@ export default function Navbar() {
 
             const apply = (on) => {
                 gsap.to(innerRef.current, {
-                    height: on ? 64 : 80,
+                    height: on ? 72 : 80,
                     duration: dur,
                     ease: "power3.out",
                 });
@@ -134,25 +134,25 @@ export default function Navbar() {
         { scope: headerRef },
     );
 
-    /* --- Mobile overlay timeline (built once, played/reversed) --- */
+    /* --- Mobile overlay timeline --- */
     useGSAP(
         () => {
-            const links = overlayRef.current.querySelectorAll("[data-stagger]");
+            const links = overlayRef.current?.querySelectorAll("[data-stagger]");
+            if (!links || links.length === 0) return;
+
+            // Timeline
             menuTl.current = gsap
                 .timeline({ paused: true, defaults: { ease: "power4.out" } })
-                .set(overlayRef.current, { display: "flex" })
-                .fromTo(
-                    overlayRef.current,
-                    { clipPath: "inset(0 0 100% 0)" },
-                    { clipPath: "inset(0 0 0% 0)", duration: 0.55 },
-                )
+                .to(overlayRef.current, {
+                    clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)", // High compatibility clip-path
+                    duration: 0.5,
+                })
                 .fromTo(
                     links,
-                    { y: 42, opacity: 0 },
-                    { y: 0, opacity: 1, duration: 0.5, stagger: 0.06 },
-                    "-=0.25",
+                    { y: 30, opacity: 0 },
+                    { y: 0, opacity: 1, duration: 0.4, stagger: 0.06 },
+                    "-=0.2",
                 );
-            if (prefersReduced()) menuTl.current.duration(0.001);
         },
         { scope: overlayRef },
     );
@@ -160,17 +160,16 @@ export default function Navbar() {
     useEffect(() => {
         if (!menuTl.current) return;
         if (open) {
+            // Overlay আগে Visual dynamic করুন, তারপর play করুন
+            overlayRef.current.style.display = "flex";
             menuTl.current.play();
             document.body.style.overflow = "hidden";
         } else {
-            menuTl.current.reverse().eventCallback("onReverseComplete", () => {
-                gsap.set(overlayRef.current, { display: "none" });
+            menuTl.current.reverse().then(() => {
+                if (overlayRef.current) overlayRef.current.style.display = "none";
             });
             document.body.style.overflow = "";
         }
-        return () => {
-            document.body.style.overflow = "";
-        };
     }, [open]);
 
     /* --- Escape closes the drawer, focus returns to the trigger --- */
@@ -191,7 +190,7 @@ export default function Navbar() {
             <header
                 ref={headerRef}
                 data-scrolled="false"
-                className="group/header fixed inset-x-0 top-0 z-50 border-b border-transparent bg-surface/70 backdrop-blur-xl transition-colors duration-300 data-[scrolled=true]:border-border-subtle"
+                className="group/header fixed inset-x-0 top-0 z-50 border-b border-transparent bg-surface-raised/70 backdrop-blur-xl transition-colors duration-300 data-[scrolled=true]:border-border-subtle"
             >
                 <div
                     ref={innerRef}
@@ -203,7 +202,7 @@ export default function Navbar() {
                         aria-label="Mission Podcast Growth — home"
                         className="group flex items-center gap-2.5 transition-[filter] duration-300 hover:drop-shadow-[0_0_12px_rgba(255,87,34,0.5)]"
                     >
-                        <img src="/logo.png" alt="logo" className="h-20 w-20 object-cover" />
+                        <img src="/logo.png" alt="logo" className="h-22 w-22 object-cover" />
                     </Link>
 
                     {/* Desktop links — dot indicator + center-out underline */}
@@ -237,7 +236,7 @@ export default function Navbar() {
                             href="/#contact"
                             className="group hidden items-center gap-1.5 bg-brand-orange px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-orange-hover sm:inline-flex"
                         >
-                            Free Review
+                            Free Podcast Audit
                             <ArrowUpRight
                                 size={16}
                                 className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"

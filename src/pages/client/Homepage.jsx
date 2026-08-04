@@ -3,6 +3,7 @@ import GuestDirectorySection from "../../components/client/home/GuestDirectorySe
 import HeroSection from "../../components/client/home/HeroSection";
 import ProcessSection from "../../components/client/home/ProcessSection";
 import ServicesSection from "../../components/client/home/ServicesSection";
+import StatMarquee from "../../components/client/home/StatMarquee";
 import WhyMissionSection from "../../components/client/home/WhyMissionSection";
 import { usePageMeta } from "../../hooks/usePageMeta";
 
@@ -18,6 +19,7 @@ export default function Homepage() {
             <link rel="canonical" href={pageMeta?.canonicalUrl} />
 
             <HeroSection />
+            <StatMarquee />
             <ServicesSection />
             <GuestDirectorySection />
             <ProcessSection />
