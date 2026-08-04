@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ArrowUpRight, Menu, Moon, Radio, Sun, X } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
+import { useAuth } from "../../context/AuthContext";
 
 gsap.registerPlugin(useGSAP);
 
@@ -91,6 +92,8 @@ function ThemeToggle() {
 /* ------------------------------------------------------------------ */
 
 export default function Navbar() {
+    const { user } = useAuth();
+    const isAdmin = user?.role === "admin" || user?.role === "super_admin";
     const [open, setOpen] = useState(false);
     const headerRef = useRef(null);
     const innerRef = useRef(null);
@@ -216,6 +219,15 @@ export default function Navbar() {
                                 <span className="absolute -bottom-1.5 left-1/2 h-0.5 w-0 -translate-x-1/2 bg-brand-orange transition-all duration-300 ease-out group-hover:w-[calc(100%-14px)]" />
                             </a>
                         ))}
+                        {isAdmin && (
+                            <Link
+                                to="/admin"
+                                className="group relative flex items-center gap-1.5 text-sm font-bold text-content-muted transition-colors duration-300 hover:text-content"
+                            >
+                                Dashboard
+                                <span className="absolute -bottom-1.5 left-1/2 h-0.5 w-0 -translate-x-1/2 bg-brand-orange transition-all duration-300 ease-out group-hover:w-[calc(100%-14px)]" />
+                            </Link>
+                        )}
                     </nav>
 
                     {/* Right actions */}
@@ -275,6 +287,20 @@ export default function Navbar() {
                             />
                         </a>
                     ))}
+                    {isAdmin && (
+                        <Link
+                            to="/admin"
+                            data-stagger
+                            onClick={() => setOpen(false)}
+                            className="group flex items-center justify-between border-b border-border-subtle py-5 text-2xl font-black font-serif uppercase tracking-tight text-content transition-colors hover:text-brand-orange"
+                        >
+                            Dashboard
+                            <ArrowUpRight
+                                size={22}
+                                className="text-content-muted opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:text-brand-orange group-hover:opacity-100"
+                            />
+                        </Link>
+                    )}
                 </nav>
 
                 <div data-stagger className="px-6 pb-10">

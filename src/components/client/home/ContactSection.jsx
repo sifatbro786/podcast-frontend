@@ -619,13 +619,13 @@ export default function ContactSection() {
                                                 Prepare my free podcast review
                                                 <ArrowUpRight
                                                     size={16}
-                                                    className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                                                    className="hidden sm:block transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                                                 />
                                             </>
                                         )}
                                     </button>
                                     <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-content-muted/70">
-                                        <Lock size={11} />
+                                        <Lock size={11} className="hidden sm:block" />
                                         Free test · No commitment · Details used only for your
                                         review
                                     </p>

@@ -69,8 +69,8 @@ function DuoImage({ src, alt, className = "" }) {
 export default function ProcessSection() {
     const rootRef = useRef(null);
     const stageRef = useRef(null);
-    const fillRef = useRef(null);
-    const counterRef = useRef(null);
+    const fillRef = useRef(null); // ← progress bar fill
+    const counterRef = useRef(null); // ← step counter
 
     useGSAP(
         () => {
@@ -108,7 +108,10 @@ export default function ProcessSection() {
                             ease: "power1.inOut",
                         },
                         onUpdate: (self) => {
-                            fillRef.current.style.transform = `scaleX(${self.progress})`;
+                            // ✅ fillRef.current এখন null হবে না
+                            if (fillRef.current) {
+                                fillRef.current.style.transform = `scaleX(${self.progress})`;
+                            }
                             setActive(Math.round(self.progress * (STEPS.length - 1)));
                         },
                     },
@@ -171,7 +174,7 @@ export default function ProcessSection() {
         <section ref={rootRef} id="process" aria-label="How it works" className="bg-surface">
             <div
                 ref={stageRef}
-                className="mx-auto flex max-w-7xl flex-col px-5 py-24 md:px-8 lg:h-screen lg:justify-center lg:py-0"
+                className="mx-auto flex max-w-7xl flex-col px-5 py-12 sm:py-24 md:px-8 lg:h-screen lg:justify-center lg:py-0"
             >
                 {/* ---- Header row ---- */}
                 <div className="flex items-end justify-between gap-6 border-b border-border-subtle pb-8">
@@ -203,6 +206,22 @@ export default function ProcessSection() {
 
                 {/* ---- Steps viewport ---- */}
                 <div className="relative mt-8 lg:mt-10 lg:min-h-0 lg:flex-1 lg:py-10">
+                    {/* ✅ Progress Rail - এখানে fillRef ব্যবহার করা হয়েছে */}
+                    <div className="absolute left-0 top-0 flex items-center gap-4">
+                        <div className="h-1 w-32 overflow-hidden bg-border-subtle lg:w-48">
+                            <div
+                                ref={fillRef}
+                                className="h-full w-full origin-left scale-x-0 bg-brand-orange transition-transform"
+                            />
+                        </div>
+                        <span
+                            ref={counterRef}
+                            className="font-mono text-sm font-bold tabular-nums text-brand-orange"
+                        >
+                            01
+                        </span>
+                    </div>
+
                     <div className="relative h-full space-y-8 lg:space-y-0">
                         {STEPS.map((s) => (
                             <article
@@ -221,7 +240,7 @@ export default function ProcessSection() {
                                         {/* Giant number straddles the image corner */}
                                         <span
                                             aria-hidden="true"
-                                            className="pointer-events-none absolute -bottom-6 -left-2 select-none font-serif text-[6rem] font-black leading-none tracking-tighter text-brand-orange lg:bottom-5 lg:text-[11rem]"
+                                            className="pointer-events-none absolute -bottom-2 -left-1 select-none font-serif text-[6rem] font-black leading-none tracking-tighter text-brand-orange lg:bottom-4 lg:text-[11rem]"
                                         >
                                             {s.n}
                                         </span>

@@ -8,6 +8,7 @@
 import gsap from "gsap";
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { prefersReduced } from "./adminUtils";
 
 export default function AdminSelect({
@@ -27,18 +28,45 @@ export default function AdminSelect({
     const listRef = useRef(null);
     const [open, setOpen] = useState(false);
     const [hi, setHi] = useState(-1);
+    const [pos, setPos] = useState(null);
 
     const opts = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
     const selectedIdx = opts.findIndex((o) => o.value === value);
 
-    // Close on outside pointerdown
+    // Close on outside pointerdown (the list is portaled, so it's checked separately)
     useEffect(() => {
         if (!open) return;
         const onDoc = (e) => {
-            if (!rootRef.current?.contains(e.target)) setOpen(false);
+            if (rootRef.current?.contains(e.target)) return;
+            if (listRef.current?.contains(e.target)) return;
+            setOpen(false);
         };
         document.addEventListener("pointerdown", onDoc);
         return () => document.removeEventListener("pointerdown", onDoc);
+    }, [open]);
+
+    // Track the trigger's viewport position so the portaled list can't get
+    // clipped by a scrollable ancestor (e.g. DataTable's overflow-x-auto,
+    // which forces overflow-y to "auto" too and cuts the list off).
+    useEffect(() => {
+        if (!open) return;
+        const update = () => {
+            const r = btnRef.current?.getBoundingClientRect();
+            if (!r) return;
+            setPos({
+                top: r.bottom + 4,
+                left: r.left,
+                right: window.innerWidth - r.right,
+                width: r.width,
+            });
+        };
+        update();
+        window.addEventListener("scroll", update, true);
+        window.addEventListener("resize", update);
+        return () => {
+            window.removeEventListener("scroll", update, true);
+            window.removeEventListener("resize", update);
+        };
     }, [open]);
 
     // Entrance micro-animation (guarded)
@@ -114,11 +142,7 @@ export default function AdminSelect({
     const selectedLabel = selectedIdx >= 0 ? opts[selectedIdx].label : placeholder;
 
     return (
-        <div
-            ref={rootRef}
-            className={`relative ${open ? "z-40" : ""} ${className}`}
-            onKeyDown={onKeyDown}
-        >
+        <div ref={rootRef} className={`relative ${className}`} onKeyDown={onKeyDown}>
             {label && (
                 <label
                     id={`${uid}-label`}
@@ -153,45 +177,52 @@ export default function AdminSelect({
                 />
             </button>
 
-            {open && (
-                <ul
-                    ref={listRef}
-                    id={`${uid}-list`}
-                    role="listbox"
-                    aria-labelledby={label ? `${uid}-label` : undefined}
-                    className={`absolute z-50 mt-1 max-h-64 min-w-full overflow-auto border border-border-subtle bg-surface-raised shadow-[0_16px_40px_-12px_rgba(0,0,0,0.5)] ${
-                        align === "right" ? "right-0" : "left-0"
-                    }`}
-                >
-                    {opts.map((o, i) => {
-                        const isSel = i === selectedIdx;
-                        const isHi = i === hi;
-                        return (
-                            <li
-                                key={`${o.value}-${i}`}
-                                id={`${uid}-opt-${i}`}
-                                role="option"
-                                aria-selected={isSel}
-                                aria-disabled={o.disabled || undefined}
-                                onPointerEnter={() => setHi(i)}
-                                onClick={() => pick(i)}
-                                className={`flex cursor-pointer items-center justify-between gap-4 whitespace-nowrap px-3 py-2 text-xs font-bold transition-colors ${
-                                    o.disabled
-                                        ? "cursor-not-allowed text-content-muted/40"
-                                        : isHi
-                                          ? "bg-brand-orange text-white"
-                                          : isSel
-                                            ? "text-brand-orange"
-                                            : "text-content-muted"
-                                }`}
-                            >
-                                {o.label}
-                                {isSel && <Check size={13} strokeWidth={3} />}
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
+            {open &&
+                pos &&
+                createPortal(
+                    <ul
+                        ref={listRef}
+                        id={`${uid}-list`}
+                        role="listbox"
+                        aria-labelledby={label ? `${uid}-label` : undefined}
+                        style={{
+                            position: "fixed",
+                            top: pos.top,
+                            ...(align === "right" ? { right: pos.right } : { left: pos.left }),
+                            minWidth: pos.width,
+                        }}
+                        className="z-50 max-h-64 overflow-auto border border-border-subtle bg-surface-raised shadow-[0_16px_40px_-12px_rgba(0,0,0,0.5)]"
+                    >
+                        {opts.map((o, i) => {
+                            const isSel = i === selectedIdx;
+                            const isHi = i === hi;
+                            return (
+                                <li
+                                    key={`${o.value}-${i}`}
+                                    id={`${uid}-opt-${i}`}
+                                    role="option"
+                                    aria-selected={isSel}
+                                    aria-disabled={o.disabled || undefined}
+                                    onPointerEnter={() => setHi(i)}
+                                    onClick={() => pick(i)}
+                                    className={`flex cursor-pointer items-center justify-between gap-4 whitespace-nowrap px-3 py-2 text-xs font-bold transition-colors ${
+                                        o.disabled
+                                            ? "cursor-not-allowed text-content-muted/40"
+                                            : isHi
+                                              ? "bg-brand-orange text-white"
+                                              : isSel
+                                                ? "text-brand-orange"
+                                                : "text-content-muted"
+                                    }`}
+                                >
+                                    {o.label}
+                                    {isSel && <Check size={13} strokeWidth={3} />}
+                                </li>
+                            );
+                        })}
+                    </ul>,
+                    document.body,
+                )}
         </div>
     );
 }

@@ -155,7 +155,7 @@ export default function WhyMissionSection() {
                     </div>
                     <p className="max-w-xs text-sm leading-relaxed text-content-muted md:text-right">
                         Mahbub Alam Mission has supported podcast creators with marketing and audio
-                        post-production since 2015 — practical strategy, transparent updates.
+                        post-production since 2015 practical strategy, transparent updates.
                     </p>
                 </div>
 

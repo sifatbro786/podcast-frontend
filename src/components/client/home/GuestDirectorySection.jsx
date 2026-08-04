@@ -162,7 +162,7 @@ export default function GuestBookingSection() {
             ref={rootRef}
             id="guest-booking"
             aria-label="Apply to be a podcast guest"
-            className="bg-surface py-10 sm:py-24 md:pb-52"
+            className="bg-surface py-8 sm:py-24 md:pb-52"
         >
             <div className="mx-auto max-w-7xl px-5 md:px-8">
                 {/* ---- Header ---- */}

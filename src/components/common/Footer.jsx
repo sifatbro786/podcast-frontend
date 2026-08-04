@@ -151,7 +151,7 @@ export default function Footer() {
                             <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
                             <span className="relative h-2 w-2 rounded-full bg-emerald-500" />
                         </span>
-                        Campaign Ops · Live
+                        Campaign · Live
                     </p>
                     <div className="flex items-center gap-4">
                         <UtcClock />
