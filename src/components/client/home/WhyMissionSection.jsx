@@ -136,17 +136,6 @@ export default function WhyMissionSection() {
             aria-label="Why Mission and our standard"
             className="relative bg-surface py-10 sm:py-28"
         >
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 opacity-[0.03]"
-                style={{
-                    backgroundImage:
-                        "linear-gradient(var(--content) 1px, transparent 1px), linear-gradient(90deg, var(--content) 1px, transparent 1px)",
-                    backgroundSize: "44px 44px",
-                    maskImage: "radial-gradient(ellipse at 50% 30%, black 30%, transparent 72%)",
-                }}
-            />
-
             <div className="relative mx-auto max-w-7xl px-5 md:px-8">
                 {/* ---- Header ---- */}
                 <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
