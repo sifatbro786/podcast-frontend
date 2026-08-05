@@ -277,7 +277,7 @@ export default function Navbar() {
                             href={n.href}
                             data-stagger
                             onClick={() => setOpen(false)}
-                            className="group flex items-center justify-between border-b border-border-subtle py-5 text-2xl font-black font-serif uppercase tracking-tight text-content transition-colors hover:text-brand-orange"
+                            className="group flex items-center justify-between border-b border-border-subtle py-5 text-2xl font-black font-display uppercase tracking-tight text-content transition-colors hover:text-brand-orange"
                         >
                             {n.label}
                             <ArrowUpRight
@@ -291,7 +291,7 @@ export default function Navbar() {
                             to="/admin"
                             data-stagger
                             onClick={() => setOpen(false)}
-                            className="group flex items-center justify-between border-b border-border-subtle py-5 text-2xl font-black font-serif uppercase tracking-tight text-content transition-colors hover:text-brand-orange"
+                            className="group flex items-center justify-between border-b border-border-subtle py-5 text-2xl font-black font-display uppercase tracking-tight text-content transition-colors hover:text-brand-orange"
                         >
                             Dashboard
                             <ArrowUpRight

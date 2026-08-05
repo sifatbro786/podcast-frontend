@@ -11,7 +11,7 @@ export default function ClientLayout() {
             <SmoothScroll>
                 <CustomCursor />
                 <Navbar />
-                <main className="pt-18">
+                <main className="pt-18 font-display">
                     <Outlet />
                 </main>
                 <Footer />

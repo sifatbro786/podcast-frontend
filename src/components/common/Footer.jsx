@@ -1,7 +1,13 @@
 // src/components/common/Footer.jsx
-// v2 — "End of Transmission". The 4-column link warehouse is gone.
-// The footer now does one job — last-chance conversion — then signs off
-// with a giant clipped wordmark whose letters behave like EQ bars.
+// v3 — "End of Transmission".
+// Changes vs v2:
+//   • Wordmark is now the full company name, space-aware (spaces are real spans
+//     so justify-between still spreads glyphs edge-to-edge without collapsing).
+//   • Primary CTA copy updated.
+//   • Reveals converted from .from() to .fromTo({ immediateRender:false }) so a
+//     ScrollTrigger that never fires (iOS Safari / short scroll runway) leaves
+//     elements in their natural, visible state instead of stuck at opacity 0.
+//   • Wordmark letters respond to touch as well as hover.
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -20,7 +26,7 @@ const NAV = [
     { label: "Contact", href: "/#contact" },
 ];
 
-const WORDMARK = "PODCAST";
+const WORDMARK = "PODCAST CHART GROWTH";
 
 const prefersReduced = () =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -110,32 +116,110 @@ export default function Footer() {
             if (prefersReduced()) return;
             const q = gsap.utils.selector(rootRef);
 
-            gsap.from(q("[data-reveal]"), {
-                y: 30,
-                opacity: 0,
-                duration: 0.8,
-                ease: "power3.out",
-                stagger: 0.08,
-                scrollTrigger: { trigger: rootRef.current, start: "top 85%", once: true },
-            });
+            // Mobile browsers fire resize every time the URL bar collapses/expands,
+            // which re-runs refresh() mid-scroll and can strand a `once` trigger.
+            ScrollTrigger.config({ ignoreMobileResize: true });
 
-            // Wordmark letters rise from below the clip like EQ bars settling
-            gsap.from(q("[data-letter]"), {
-                yPercent: 100,
-                duration: 1.1,
-                ease: "power4.out",
-                stagger: 0.045,
-                scrollTrigger: { trigger: q("[data-wordmark]"), start: "top 96%", once: true },
-            });
+            // If the element is already on screen at mount (short page, deep link,
+            // restored scroll position), play immediately instead of hanging a
+            // trigger that may fire late or not at all.
+            const isOnScreen = (el, ratio = 0.95) => {
+                if (!el) return false;
+                const r = el.getBoundingClientRect();
+                return r.top < window.innerHeight * ratio && r.bottom > 0;
+            };
+
+            /* ---- Content blocks ---- */
+            const revealTargets = q("[data-reveal]");
+            const footerVisible = isOnScreen(rootRef.current, 0.85);
+
+            gsap.fromTo(
+                revealTargets,
+                { y: 30, autoAlpha: 0 },
+                {
+                    y: 0,
+                    autoAlpha: 1,
+                    duration: 0.8,
+                    ease: "power3.out",
+                    stagger: 0.08,
+                    overwrite: "auto",
+                    // Never pre-render the "from" state — if the trigger never
+                    // fires, the markup stays visible.
+                    immediateRender: false,
+                    ...(footerVisible
+                        ? {}
+                        : {
+                              scrollTrigger: {
+                                  trigger: rootRef.current,
+                                  // "top bottom-=40" fires the moment the footer
+                                  // edge clears the viewport bottom — reliable on
+                                  // short mobile viewports where "top 85%" can be
+                                  // skipped past in a single flick.
+                                  start: "top bottom-=40",
+                                  once: true,
+                                  invalidateOnRefresh: true,
+                              },
+                          }),
+                },
+            );
+
+            /* ---- Wordmark letters rise like EQ bars settling ---- */
+            const wordmark = q("[data-wordmark]")[0];
+            const letters = q("[data-letter]");
+            const wordmarkVisible = isOnScreen(wordmark);
+
+            gsap.fromTo(
+                letters,
+                { yPercent: 100 },
+                {
+                    yPercent: 0,
+                    duration: 1.1,
+                    ease: "power4.out",
+                    stagger: 0.045,
+                    overwrite: "auto",
+                    immediateRender: false,
+                    ...(wordmarkVisible
+                        ? {}
+                        : {
+                              scrollTrigger: {
+                                  trigger: wordmark,
+                                  // The wordmark sits near the document end; a
+                                  // "top 96%" start can be unreachable when the
+                                  // footer is taller than the mobile viewport.
+                                  start: "top bottom",
+                                  once: true,
+                                  invalidateOnRefresh: true,
+                              },
+                          }),
+                },
+            );
+
+            /* ---- Recalculate once webfonts / images settle ---- */
+            const refresh = () => ScrollTrigger.refresh();
+            window.addEventListener("load", refresh);
+            if (document.fonts?.ready) document.fonts.ready.then(refresh).catch(() => {});
+
+            return () => window.removeEventListener("load", refresh);
         },
         { scope: rootRef },
     );
 
-    // Each wordmark letter bounces like a struck EQ bar
+    // Each wordmark letter bounces like a struck EQ bar.
+    // Bound to both pointer-enter and touchstart; the data-flag stops a touch
+    // device that also synthesises mouseenter from firing the timeline twice.
     const bounceLetter = (e) => {
         if (prefersReduced()) return;
         const el = e.currentTarget;
-        gsap.timeline()
+        if (el.dataset.bouncing === "1") return;
+        el.dataset.bouncing = "1";
+
+        gsap.killTweensOf(el);
+        gsap.timeline({
+            onComplete: () => {
+                el.dataset.bouncing = "";
+            },
+        })
+            .set(el, { yPercent: 0 })
             .to(el, { yPercent: -16, color: "#ff5722", duration: 0.18, ease: "power2.out" })
             .to(el, { yPercent: 0, duration: 0.7, ease: "elastic.out(1, 0.35)" })
             .to(el, { color: "", duration: 0.5 }, "-=0.5");
@@ -161,36 +245,34 @@ export default function Footer() {
             </div>
 
             {/* ---- The footer's real job: last-chance conversion ---- */}
-            <div className="mx-auto max-w-7xl px-5 pt-16 md:px-8 lg:pt-24">
+            <div className="mx-auto max-w-7xl px-5 pt-5 md:px-8">
                 <div className="grid items-end gap-8 lg:grid-cols-[1fr_auto]">
-                    <h2
-                        data-reveal
-                        className="text-5xl font-black font-serif leading-[0.95] tracking-tight text-content sm:text-6xl lg:text-7xl"
-                    >
-                        Ready to be
-                        <br />
-                        <span className="font-serif font-medium italic tracking-normal text-brand-orange">
+                    <h2 className=" font-display font-medium leading-[1.05] tracking-[-0.02em] text-white lg:mt-9 in-[.light]:text-slate-900">
+                        <span data-line className=" text-[clamp(2rem,5.4vw,3.75rem)]">
+                            Ready to be{" "}
+                        </span>
+                        <span className="font-serif text-[2.5em] sm:text-[3.6em] font-normal tracking-normal text-brand-orange italic">
                             discovered?
                         </span>
                     </h2>
                     <a
                         data-reveal
                         href="/#contact"
-                        className="group inline-flex w-fit items-center gap-3 border border-border-subtle px-8 py-5 text-sm font-black uppercase tracking-[0.2em] text-content transition-colors duration-300 hover:border-brand-orange hover:bg-brand-orange hover:text-white"
+                        className="group inline-flex w-fit items-center gap-3 border border-border-subtle px-6 sm:px-8 py-5 text-sm font-black uppercase tracking-[0.2em] text-content transition-colors duration-300 hover:border-brand-orange hover:bg-brand-orange hover:text-white"
                     >
-                        Start Free Review
+                        Start free podcast audit
                         <ArrowUpRight
                             size={18}
-                            className="transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
+                            className="hidden sm:block transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
                         />
                     </a>
                 </div>
 
                 {/* ---- Contact: the email IS the link, oversized ---- */}
-                <div data-reveal className="mt-14 border-t border-border-subtle pt-8">
+                <div data-reveal className="sm:mt-14 sm:border-t border-border-subtle pt-8">
                     <a
                         href="mailto:Mission2016start@gmail.com"
-                        className="group relative inline-block break-all text-xl font-black tracking-tight text-content transition-colors hover:text-brand-orange sm:text-2xl lg:text-3xl"
+                        className="group relative inline-block break-all text-xl font-medium tracking-tight text-content transition-colors hover:text-brand-orange sm:text-2xl lg:text-3xl"
                     >
                         Mission2016start@gmail.com
                         <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-brand-orange transition-all duration-500 ease-out group-hover:w-full" />
@@ -204,11 +286,11 @@ export default function Footer() {
                         >
                             WhatsApp +880 1710-368102
                         </a>
-                        <span aria-hidden="true" className="text-brand-orange">
+                        <span aria-hidden="true" className="hidden sm:block text-brand-orange">
                             ✦
                         </span>
                         <span>Global Operational Support</span>
-                        <span aria-hidden="true" className="text-brand-orange">
+                        <span aria-hidden="true" className="hidden sm:block text-brand-orange">
                             ✦
                         </span>
                         <span className="flex items-center gap-3">
@@ -255,23 +337,33 @@ export default function Footer() {
                 aria-hidden="true"
                 className="mx-auto max-w-7xl select-none overflow-hidden px-5 md:px-8"
             >
-                <div className="flex translate-y-[0.14em] justify-between text-[clamp(4rem,17.5vw,17rem)] font-black leading-none tracking-tight text-content/10">
-                    {WORDMARK.split("").map((ch, i) => (
-                        <span
-                            key={i}
-                            data-letter
-                            onMouseEnter={bounceLetter}
-                            className="inline-block cursor-default transition-colors"
-                        >
-                            {ch}
-                        </span>
-                    ))}
+                {/* clamp retuned for 18 glyphs so the mark still bleeds edge-to-edge
+                    at the same optical weight the 7-letter version had */}
+                <div className="flex translate-y-[0.14em] justify-between text-[clamp(1.05rem,6.1vw,5.6rem)] font-black leading-none tracking-tight text-content/10">
+                    {WORDMARK.split("").map((ch, i) =>
+                        ch === " " ? (
+                            // Real span, not a collapsed whitespace node: keeps the
+                            // flex distribution honest and adds visible word spacing
+                            // on top of the justify-between gap.
+                            <span key={i} data-letter className="inline-block w-[0.25em]" />
+                        ) : (
+                            <span
+                                key={i}
+                                data-letter
+                                onMouseEnter={bounceLetter}
+                                onTouchStart={bounceLetter}
+                                className="inline-block cursor-default transition-colors"
+                            >
+                                {ch}
+                            </span>
+                        ),
+                    )}
                 </div>
             </div>
 
             {/* ---- Legal bar ---- */}
             <div className="border-t border-border-subtle">
-                <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-2 px-5 py-5 text-[11px] font-semibold text-content-muted sm:flex-row sm:items-center md:px-8">
+                <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-5 py-5 text-[11px] font-semibold text-content-muted sm:flex-row sm:items-center md:px-8">
                     <p>© {year} Mission Podcast Growth. All rights reserved.</p>
                     <p>Results vary by show and campaign. No fake chart guarantees.</p>
                 </div>

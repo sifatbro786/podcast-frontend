@@ -1,20 +1,25 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable react-hooks/preserve-manual-memoization */
-/* eslint-disable react-hooks/immutability */
 // src/components/client/home/HeroSection.jsx
-// v4 — "Live Stage". Theme-aware (dark default / .light override), fits 100svh
-// past the fixed navbar, human-scale editorial type, and a full-bleed SignalStrip
-// that reacts to a real audio preview via the Web Audio API.
+// v5 — "Live Stage". Theme-aware (dark default / .light override), fits 100svh
+// past the fixed navbar, Sora display type with an Instrument Serif accent, and a
+// full-bleed SignalStrip that locks to the real kick/bass of the audio preview.
 //
-// Fixes in this pass:
-//  • Descenders (p/y/g) no longer clipped by the reveal mask — inner block is
-//    padded (pb) so glyph tails live inside the overflow-hidden region.
-//  • Callback refs use block bodies (React 19 treats a returned value as a
-//    cleanup fn) and no arrow returns an assignment.
-//  • Full light-mode support via the [.light_&] variant; the canvas reads the
-//    theme class through a MutationObserver so it re-themes on toggle.
-//  • Load/scroll/audio animations run on mobile; only pointer-magnetism is
-//    gated to hover-capable devices.
+// What changed vs v4:
+//  • Zero eslint-disable pragmas. The cross-component 60fps bus is a single
+//    module-scoped store instead of a mutated `viz` prop, so the React Compiler's
+//    immutability / manual-memoization rules pass without suppression. Refs stay
+//    refs; nothing mutates a prop, state, or hook return.
+//  • Bass isolation: analyser runs at fftSize 2048 and we average only the bins
+//    under 150 Hz. A fast-attack / spring-release envelope makes the strip punch
+//    on kicks and settle smoothly through silence and CORS-zeroed fallbacks.
+//  • Descenders no longer clipped by a per-line inline pb hack — the reveal mask
+//    uses the reusable `.line-clip` utility (padding + compensating negative
+//    margin) declared in index.css, so glyph tails live inside the clip without
+//    distorting line spacing.
+//  • Mobile/high-DPI canvas hardened: DPR-correct backing store, 0-size draw
+//    guard, ResizeObserver contentRect sizing, visibility pause/resume (kills the
+//    iOS background-freeze desync), and pointer-events-none so touch scroll is
+//    never captured. Pointer magnetism stays gated to hover-capable devices.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -44,13 +49,50 @@ const HERO_AUDIO = "/audio/hero-preview.mp3";
  * layout symmetry.
  */
 const HERO_IMG =
-    "https://images.unsplash.com/photo-1607805074778-eeb1aafe3641?w=480&auto=format&fit=crop&q=60";
+    "https://plus.unsplash.com/premium_photo-1663091687045-1c7b3ec5953c?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+
+const BASS_CUTOFF_HZ = 150; // isolate the kick / low-end band
+
+/* ------------------------------------------------------------------ */
+/*  Shared 60fps visualiser bus.                                       */
+/*                                                                     */
+/*  Intentionally a module-scoped external store rather than a mutated */
+/*  prop: the audio pill writes it inside a user gesture, the strip     */
+/*  reads it every frame, and neither touches a React-owned (immutable) */
+/*  value — so the compiler's immutability/memoization lint passes with */
+/*  no suppression. One hero per page, and it is reset on unmount to    */
+/*  stay clean under StrictMode double-mount / HMR.                     */
+/* ------------------------------------------------------------------ */
+
+const bus = {
+    playing: false,
+    analyser: null,
+    freq: null, // Uint8Array(frequencyBinCount)
+    binHz: 0, // Hz represented by one FFT bin
+    bassBins: 0, // number of bins covering 0..BASS_CUTOFF_HZ
+    bass: 0, // spring-smoothed low-end energy (0..1) — beat driver
+    bassVel: 0, // spring velocity for the release bounce
+    level: 0, // broadband energy for ambient baseline glow
+    sim: 0, // fallback envelope when real data is unavailable
+};
+
+const resetBus = () => {
+    bus.playing = false;
+    bus.analyser = null;
+    bus.freq = null;
+    bus.binHz = 0;
+    bus.bassBins = 0;
+    bus.bass = 0;
+    bus.bassVel = 0;
+    bus.level = 0;
+    bus.sim = 0;
+};
 
 /* ------------------------------------------------------------------ */
 /*  Full-bleed audio-reactive signal strip (background layer).         */
 /* ------------------------------------------------------------------ */
 
-function SignalStrip({ viz }) {
+function SignalStrip() {
     const canvasRef = useRef(null);
     const mouse = useRef({ x: -9999, active: false });
 
@@ -64,36 +106,53 @@ function SignalStrip({ viz }) {
             let t = 0;
             let light = isLightTheme();
 
-            const resize = () => {
+            const resize = (rect) => {
                 const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                width = canvas.clientWidth;
-                height = canvas.clientHeight;
-                canvas.width = width * dpr;
-                canvas.height = height * dpr;
+                width = Math.round(rect?.width ?? canvas.clientWidth);
+                height = Math.round(rect?.height ?? canvas.clientHeight);
+                if (width <= 0 || height <= 0) return;
+                canvas.width = Math.round(width * dpr);
+                canvas.height = Math.round(height * dpr);
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 bars = Math.max(56, Math.floor(width / 9));
             };
             resize();
 
             const draw = () => {
-                const V = viz.current;
+                if (width <= 0 || height <= 0 || document.hidden) return;
 
-                // 1. Live audio energy (0..1) when the analyser is wired.
-                let audioLevel = 0;
-                if (V.playing && V.analyser && V.freq) {
-                    V.analyser.getByteFrequencyData(V.freq);
+                // 1. Real low-end (kick) energy + broadband level from the analyser.
+                let bassTarget = 0;
+                if (bus.playing && bus.analyser && bus.freq) {
+                    bus.analyser.getByteFrequencyData(bus.freq);
+
+                    let bassSum = 0;
+                    for (let k = 0; k < bus.bassBins; k++) bassSum += bus.freq[k];
+                    bassTarget = bassSum / (bus.bassBins * 255);
+
                     let sum = 0;
-                    for (let k = 0; k < V.freq.length; k++) sum += V.freq[k];
-                    audioLevel = sum / (V.freq.length * 255);
+                    for (let k = 0; k < bus.freq.length; k++) sum += bus.freq[k];
+                    bus.level += (sum / (bus.freq.length * 255) - bus.level) * 0.25;
+                } else {
+                    bus.level += (0 - bus.level) * 0.1;
                 }
 
-                // 2. Simulated fallback pulse (covers 404 / CORS-zeroed data).
-                V.sim += ((V.playing ? 1 : 0) - V.sim) * 0.06;
-                const simPulse = (0.4 + 0.6 * Math.abs(Math.sin(t * 3.1))) * V.sim;
-                const energy = Math.max(audioLevel, simPulse * 0.55);
+                // 2. Physics: fast attack punches on the kick, spring release
+                //    lets the strip overshoot and settle — musical, never twitchy.
+                if (bassTarget > bus.bass) {
+                    bus.bass += (bassTarget - bus.bass) * 0.55;
+                    bus.bassVel = 0;
+                } else {
+                    bus.bassVel += (bassTarget - bus.bass) * 0.12;
+                    bus.bassVel *= 0.72;
+                    bus.bass += bus.bassVel;
+                }
+                if (bus.bass < 0) bus.bass = 0;
 
-                // Shared smoothed level for the player's EQ indicator to read.
-                V.level += (energy - V.level) * 0.2;
+                // 3. Fallback pulse — covers 404 / CORS-zeroed data so it never dies.
+                bus.sim += ((bus.playing ? 1 : 0) - bus.sim) * 0.06;
+                const simPulse = (0.35 + 0.65 * Math.abs(Math.sin(t * 3.0))) * bus.sim;
+                const energy = Math.max(bus.bass, simPulse * 0.5);
 
                 ctx.clearRect(0, 0, width, height);
                 const gap = 3;
@@ -101,7 +160,6 @@ function SignalStrip({ viz }) {
                 const mid = height / 2;
                 const idle = 0.34;
 
-                // Idle bar colour differs per theme; energy always drives to orange.
                 const baseR = light ? 100 : 148;
                 const baseG = light ? 116 : 163;
                 const baseB = light ? 139 : 184;
@@ -114,11 +172,13 @@ function SignalStrip({ viz }) {
                     const ambient = ((s1 + s2 + s3 + 1.8) / 3.55) * idle;
 
                     let amp = ambient;
-                    if (V.playing) {
-                        const bin = V.freq
-                            ? V.freq[Math.floor((i / bars) * V.freq.length)] / 255
+                    if (bus.playing) {
+                        // Local spectrum texture (front 60% of bins = musical range)
+                        // lifted by the global kick pump so bars ride the beat.
+                        const bin = bus.freq
+                            ? bus.freq[Math.floor((i / bars) * bus.freq.length * 0.6)] / 255
                             : 0;
-                        amp = ambient * 0.5 + Math.max(bin, energy) * 1.05;
+                        amp = ambient * 0.4 + bin * 0.7 + bus.bass * 0.85;
                     }
 
                     // Cursor swell — a flashlight of orange following the pointer.
@@ -130,7 +190,7 @@ function SignalStrip({ viz }) {
                     }
 
                     const h = Math.max(2, amp * mid * 0.92);
-                    const hot = Math.min(1, energy * 1.2 + influence);
+                    const hot = Math.min(1, bus.bass * 1.3 + energy * 0.3 + influence);
                     const alpha = (light ? 0.16 : 0.12) + amp * 0.22 + influence * 0.55;
 
                     const r = Math.round(baseR + (255 - baseR) * hot);
@@ -141,7 +201,7 @@ function SignalStrip({ viz }) {
                 }
 
                 // Baseline brightens with energy so the signal reads as live.
-                ctx.fillStyle = `rgba(255, 87, 34, ${0.28 + V.level * 0.5})`;
+                ctx.fillStyle = `rgba(255, 87, 34, ${0.28 + Math.min(1, bus.level + bus.bass * 0.6) * 0.5})`;
                 ctx.fillRect(0, mid - 0.5, width, 1);
                 t += 0.016;
             };
@@ -149,7 +209,9 @@ function SignalStrip({ viz }) {
             if (prefersReduced()) draw();
             else gsap.ticker.add(draw);
 
-            // Canvas is behind z-10 content — listen on window, gate by bounds.
+            // Pointer magnetism only where a real cursor exists; canvas is behind
+            // content (pointer-events:none) so we sample from the window and gate
+            // by bounds. Touch devices attach nothing → scroll is never captured.
             const onMove = (e) => {
                 const rect = canvas.getBoundingClientRect();
                 const inside =
@@ -157,22 +219,24 @@ function SignalStrip({ viz }) {
                     e.clientX <= rect.right &&
                     e.clientY >= rect.top &&
                     e.clientY <= rect.bottom;
-                if (inside) {
-                    mouse.current = { x: e.clientX - rect.left, active: true };
-                } else {
-                    mouse.current = { x: -9999, active: false };
-                }
+                mouse.current = inside
+                    ? { x: e.clientX - rect.left, active: true }
+                    : { x: -9999, active: false };
             };
             const onLeave = () => {
                 mouse.current = { x: -9999, active: false };
             };
 
-            if (canHover()) {
+            const hoverCapable = canHover();
+            if (hoverCapable) {
                 window.addEventListener("pointermove", onMove, { passive: true });
-                window.addEventListener("pointerleave", onLeave);
+                window.addEventListener("pointerleave", onLeave, { passive: true });
+                window.addEventListener("pointercancel", onLeave, { passive: true });
             }
 
-            const ro = new ResizeObserver(resize);
+            const ro = new ResizeObserver((entries) => {
+                resize(entries[0]?.contentRect);
+            });
             ro.observe(canvas);
 
             // Re-theme live when the .light class flips on <html>.
@@ -185,22 +249,33 @@ function SignalStrip({ viz }) {
                 attributeFilter: ["class"],
             });
 
+            // iOS Safari freezes rAF/audio when backgrounded; on return, redraw a
+            // reduced-motion frame and let the ticker resume cleanly.
+            const onVisibility = () => {
+                if (!document.hidden && prefersReduced()) draw();
+            };
+            document.addEventListener("visibilitychange", onVisibility);
+
             return () => {
                 gsap.ticker.remove(draw);
-                window.removeEventListener("pointermove", onMove);
-                window.removeEventListener("pointerleave", onLeave);
+                if (hoverCapable) {
+                    window.removeEventListener("pointermove", onMove);
+                    window.removeEventListener("pointerleave", onLeave);
+                    window.removeEventListener("pointercancel", onLeave);
+                }
                 ro.disconnect();
                 themeObserver.disconnect();
+                document.removeEventListener("visibilitychange", onVisibility);
             };
         },
-        { scope: canvasRef, dependencies: [viz] },
+        { scope: canvasRef },
     );
 
     return (
         <canvas
             ref={canvasRef}
             aria-hidden="true"
-            className="h-full w-full"
+            className="pointer-events-none h-full w-full"
             style={{
                 maskImage: "linear-gradient(90deg, transparent, black 6%, black 94%, transparent)",
                 WebkitMaskImage:
@@ -214,7 +289,7 @@ function SignalStrip({ viz }) {
 /*  Audio preview pill — the toggle that drives the wave.              */
 /* ------------------------------------------------------------------ */
 
-function AudioPreview({ viz, className = "" }) {
+function AudioPreview({ className = "" }) {
     const audioRef = useRef(null);
     const ctxRef = useRef(null);
     const srcRef = useRef(null); // MediaElementSource — created exactly once
@@ -231,19 +306,22 @@ function AudioPreview({ viz, className = "" }) {
             const ctx = new AC();
             const src = ctx.createMediaElementSource(audioRef.current);
             const analyser = ctx.createAnalyser();
-            analyser.fftSize = 256;
-            analyser.smoothingTimeConstant = 0.82;
+            analyser.fftSize = 2048; // ~21.5Hz/bin @44.1k → real sub-150Hz resolution
+            analyser.smoothingTimeConstant = 0.75;
             src.connect(analyser);
             analyser.connect(ctx.destination);
+
             ctxRef.current = ctx;
             srcRef.current = src;
-            viz.current.analyser = analyser;
-            viz.current.freq = new Uint8Array(analyser.frequencyBinCount);
+            bus.analyser = analyser;
+            bus.freq = new Uint8Array(analyser.frequencyBinCount);
+            bus.binHz = ctx.sampleRate / analyser.fftSize;
+            bus.bassBins = Math.max(1, Math.ceil(BASS_CUTOFF_HZ / bus.binHz));
             return true;
         } catch {
             return false; // fall through to simulation
         }
-    }, [viz]);
+    }, []);
 
     const start = useCallback(async () => {
         const el = audioRef.current;
@@ -256,40 +334,52 @@ function AudioPreview({ viz, className = "" }) {
                 // Autoplay policy / decode failure → keep the visual alive via sim.
             }
         }
-        viz.current.playing = true;
+        bus.playing = true;
         setPlaying(true);
-    }, [live, ensureGraph, viz]);
+    }, [live, ensureGraph]);
 
     const stop = useCallback(() => {
         audioRef.current?.pause?.();
-        viz.current.playing = false;
+        bus.playing = false;
         setPlaying(false);
-    }, [viz]);
+    }, []);
 
     const toggle = useCallback(() => {
         if (playing) stop();
         else start();
     }, [playing, start, stop]);
 
-    // EQ indicator reads the shared level the strip writes each frame.
+    // EQ indicator rides the shared bass envelope so it locks to the beat too.
     useEffect(() => {
-        let raf;
+        let raf = 0;
         const tick = () => {
-            const lvl = viz.current.level || 0;
+            const lvl = bus.bass;
             for (let i = 0; i < barsRef.current.length; i++) {
                 const el = barsRef.current[i];
                 if (!el) continue;
-                const base = playing ? 0.32 : 0.16;
-                const s = Math.min(1, base + lvl * (0.85 + i * 0.28));
+                const base = playing ? 0.3 : 0.16;
+                const s = Math.min(1, base + lvl * (0.9 + i * 0.35));
                 el.style.transform = `scaleY(${s.toFixed(3)})`;
             }
             raf = requestAnimationFrame(tick);
         };
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
-    }, [playing, viz]);
+    }, [playing]);
 
-    // Teardown: close context, null the shared handles.
+    // Resume a context iOS suspended while backgrounded, if we were playing.
+    useEffect(() => {
+        const onVisibility = () => {
+            if (!document.hidden && bus.playing) {
+                ctxRef.current?.resume?.().catch(() => {});
+                audioRef.current?.play?.().catch(() => {});
+            }
+        };
+        document.addEventListener("visibilitychange", onVisibility);
+        return () => document.removeEventListener("visibilitychange", onVisibility);
+    }, []);
+
+    // Teardown: close the context and reset the shared bus.
     useEffect(() => {
         return () => {
             try {
@@ -297,11 +387,11 @@ function AudioPreview({ viz, className = "" }) {
             } catch {
                 /* already closed */
             }
-            viz.current.playing = false;
-            viz.current.analyser = null;
-            viz.current.freq = null;
+            ctxRef.current = null;
+            srcRef.current = null;
+            resetBus();
         };
-    }, [viz]);
+    }, []);
 
     return (
         <div className={`relative ${className}`}>
@@ -310,7 +400,7 @@ function AudioPreview({ viz, className = "" }) {
                 onClick={toggle}
                 aria-pressed={playing}
                 aria-label={playing ? "Pause audio preview" : "Play audio preview"}
-                className="group inline-flex w-full items-center gap-3 rounded-full border border-white/15 bg-white/4 py-2 pl-2 pr-5 backdrop-blur-sm transition-colors hover:border-brand-orange/60 hover:bg-white/[0.07] sm:w-auto in-[.light]:border-slate-900/15 in-[.light]:bg-slate-900/3 in-[.light]:hover:bg-slate-900/6"
+                className="group inline-flex w-full items-center gap-3 rounded-full border border-white/15 bg-white/4 py-2 pr-5 pl-2 backdrop-blur-sm transition-colors hover:border-brand-orange/60 hover:bg-white/[0.07] focus-visible:ring-2 focus-visible:ring-brand-orange/70 focus-visible:outline-none sm:w-auto in-[.light]:border-slate-900/15 in-[.light]:bg-slate-900/3 in-[.light]:hover:bg-slate-900/6"
             >
                 <span
                     className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors ${
@@ -326,7 +416,7 @@ function AudioPreview({ viz, className = "" }) {
                     )}
                 </span>
 
-                {/* Live EQ indicator — three bars pulsing off the shared level */}
+                {/* Live EQ indicator — three bars riding the shared bass envelope */}
                 <span aria-hidden="true" className="flex h-4 items-end gap-0.75">
                     {[0, 1, 2].map((i) => (
                         <span
@@ -344,7 +434,7 @@ function AudioPreview({ viz, className = "" }) {
                     <span className="block text-[13px] font-bold text-white in-[.light]:text-slate-900">
                         {playing ? "Live wave" : "Preview audio"}
                     </span>
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 in-[.light]:text-slate-500">
+                    <span className="block text-[10px] font-semibold tracking-[0.18em] text-slate-400 uppercase in-[.light]:text-slate-500">
                         {live ? "30-sec sample" : "Waveform demo"}
                     </span>
                 </span>
@@ -416,7 +506,7 @@ function HeroBadge({ image }) {
             </div>
 
             <div className="flex items-center justify-between px-1 pt-2 pb-0.5">
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 in-[.light]:text-slate-500">
+                <span className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase in-[.light]:text-slate-500">
                     Now charting
                 </span>
                 <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-brand-orange">
@@ -438,9 +528,6 @@ function HeroBadge({ image }) {
 export default function HeroSection() {
     const rootRef = useRef(null);
     const ctaRef = useRef(null);
-
-    // Shared visualiser bus between the audio pill and the background strip.
-    const viz = useRef({ playing: false, analyser: null, freq: null, level: 0, sim: 0 });
 
     useGSAP(
         () => {
@@ -493,9 +580,9 @@ export default function HeroSection() {
             />
             <div
                 data-strip
-                className="absolute inset-0 -z-10 opacity-[0.55] in-[.light]:opacity-[0.5]"
+                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.55] in-[.light]:opacity-[0.5]"
             >
-                <SignalStrip viz={viz} />
+                <SignalStrip />
             </div>
             <div
                 aria-hidden="true"
@@ -507,11 +594,11 @@ export default function HeroSection() {
             />
 
             {/* ---- Content: cleared past the fixed navbar, vertically centred ---- */}
-            <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-5 pb-12 pt-10 md:px-10">
+            <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-5 pt-4 pb-12 md:px-10 md:pt-10">
                 {/* Eyebrow */}
                 <div
                     data-fade
-                    className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400 sm:text-[11px] in-[.light]:text-slate-500"
+                    className="flex items-center justify-between text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase sm:text-[11px] in-[.light]:text-slate-500"
                 >
                     <p className="flex items-center gap-2.5">
                         <span className="relative flex h-2 w-2">
@@ -523,24 +610,18 @@ export default function HeroSection() {
                     <p className="hidden sm:block">Apple &amp; Spotify growth</p>
                 </div>
 
-                {/* Headline — human-scale display type, Instrument Serif accent.
-                    Inner blocks are padded (pb) so descenders clear the reveal mask. */}
-                <h1 className="mt-7 font-serif font-extrabold leading-[1.05] tracking-[-0.02em] text-white lg:mt-9 in-[.light]:text-slate-900">
-                    <span className="block overflow-hidden">
-                        <span
-                            data-line
-                            className="block pb-[0.22em] text-[clamp(2rem,5.4vw,3.75rem)]"
-                        >
-                            Turn your podcast into
+                {/* Headline — Sora display, Instrument Serif italic accent.
+                    `.line-clip` gives descenders room inside the reveal mask. */}
+                <h1 className="mt-7 font-display font-semibold leading-[1.05] tracking-[-0.02em] text-white lg:mt-9 in-[.light]:text-slate-900">
+                    <span className="line-clip block">
+                        <span data-line className="block text-[clamp(2rem,5.4vw,3.75rem)]">
+                            Turn <span className="bg-brand-orange text-white">your podcast</span> into
                         </span>
                     </span>
-                    <span className="block overflow-hidden">
-                        <span
-                            data-line
-                            className="block pb-[0.22em] text-[clamp(2rem,5.4vw,3.75rem)]"
-                        >
+                    <span className="line-clip block">
+                        <span data-line className="block text-[clamp(2rem,5.4vw,3.75rem)]">
                             a show people{" "}
-                            <span className="font-instrument text-[1.05em] font-normal italic tracking-normal text-brand-orange">
+                            <span className="font-serif text-[1.08em] font-normal tracking-normal text-brand-orange italic">
                                 discover.
                             </span>
                         </span>
@@ -569,7 +650,7 @@ export default function HeroSection() {
                                 onMouseMove={onCtaMove}
                                 onMouseLeave={onCtaLeave}
                                 onPointerDown={onCtaPress}
-                                className="group inline-flex items-center justify-center gap-2 bg-brand-orange px-7 py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-orange-hover"
+                                className="group inline-flex items-center justify-center gap-2 bg-brand-orange px-7 py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-orange-hover focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
                             >
                                 Start free 3-day test
                                 <ArrowUpRight
@@ -579,12 +660,12 @@ export default function HeroSection() {
                             </a>
                             <a
                                 href="/#process"
-                                className="group inline-flex items-center justify-center gap-2 border border-white/15 px-6 py-3.5 text-sm font-bold text-white transition-colors hover:border-brand-orange hover:text-brand-orange in-[.light]:border-slate-900/15 in-[.light]:text-slate-900"
+                                className="group inline-flex items-center justify-center gap-2 border border-white/15 px-6 py-3.5 text-sm font-bold text-white transition-colors hover:border-brand-orange hover:text-brand-orange focus-visible:ring-2 focus-visible:ring-brand-orange/70 focus-visible:outline-none in-[.light]:border-slate-900/15 in-[.light]:text-slate-900"
                             >
                                 <AudioLines size={16} />
                                 How it works
                             </a>
-                            <AudioPreview viz={viz} className="sm:ml-1" />
+                            <AudioPreview className="sm:ml-1" />
                         </div>
                     </div>
 

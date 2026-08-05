@@ -1,7 +1,15 @@
 // src/components/client/home/ProcessSection.jsx
-// "The Sequence". Desktop: the section pins; scroll drives one full-focus step
-// at a time — image on one side, copy on the other — snapping to each stage
-// with a live progress rail. Mobile: a clean vertical reveal (no pin).
+// "The Sequence" — v3
+//
+// Desktop  : the stage pins, scroll scrubs one full-focus step at a time.
+//            Crossfades are alpha-led with a 6% transform travel so the GPU
+//            never has to repaint a large area mid-scrub.
+// Mobile   : no pin, no scrub. One batched ScrollTrigger reveals cards on the
+//            way up — transforms + opacity only, so iOS Safari holds 60fps.
+//
+// Changed vs v2: progress rail + step counter removed, image duotone/gradient
+// washes removed, headings moved to font-display (serif is now reserved for
+// the italic accent phrase only).
 import { useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -11,6 +19,10 @@ import SplitWords from "../../common/SplitWords";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
+/* Set to 0 if you notice the pin engaging a few pixels early — Lenis and
+   anticipatePin both look ahead, and together they can double-count. */
+// const ANTICIPATE_PIN = 1;
+
 /* Swap these with the client's licensed photography before launch. */
 const STEPS = [
     {
@@ -18,7 +30,7 @@ const STEPS = [
         tag: "Discovery",
         title: "Podcast Review",
         description: "We review your show, niche, recent episodes, audience, and growth goals.",
-        img: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=1200&auto=format&fit=crop",
+        img: "https://images.pexels.com/photos/6919987/pexels-photo-6919987.jpeg",
         alt: "Broadcast microphone in a recording studio",
     },
     {
@@ -26,7 +38,7 @@ const STEPS = [
         tag: "Trial",
         title: "Free 3-Day Test",
         description: "Evaluate campaign activity and your analytics before choosing a longer plan.",
-        img: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop",
+        img: "https://images.pexels.com/photos/9011378/pexels-photo-9011378.jpeg",
         alt: "Headphones resting on a desk beside a phone",
     },
     {
@@ -34,7 +46,7 @@ const STEPS = [
         tag: "Execution",
         title: "Focused Campaign",
         description: "We run the agreed strategy and share clear progress updates along the way.",
-        img: "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?q=80&w=1200&auto=format&fit=crop",
+        img: "https://images.pexels.com/photos/5563238/pexels-photo-5563238.jpeg",
         alt: "Studio mixing console with channel faders",
     },
     {
@@ -42,128 +54,144 @@ const STEPS = [
         tag: "Momentum",
         title: "Review And Scale",
         description: "You review the results before approving any extended campaign.",
-        img: "https://images.unsplash.com/photo-1607805074778-eeb1aafe3641?q=80&w=1200&auto=format&fit=crop",
+        img: "https://images.pexels.com/photos/27357322/pexels-photo-27357322.jpeg",
         alt: "Podcaster speaking into a studio microphone",
     },
 ];
 
-/** Duotone image — grayscale + brand-orange multiply wash. Keeps any photo
- *  inside the palette and working across dark/light. */
-function DuoImage({ src, alt, className = "" }) {
-    return (
-        <div className={`relative overflow-hidden ${className}`}>
-            <img
-                data-img
-                src={src}
-                alt={alt}
-                loading="lazy"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-                className="h-full w-full object-cover "
-            />
-            <div className="absolute inset-0 bg-brand-orange/25 mix-blend-multiply" />
-            <div className="absolute inset-0 bg-linear-to-t from-surface/40 to-transparent" />
-        </div>
-    );
-}
+/* Fixed spectrum — deterministic, so it never differs between renders and
+   never needs to run a single frame of JS. */
+const SPECTRUM = [
+    14, 30, 22, 46, 34, 58, 40, 74, 52, 88, 62, 44, 70, 32, 56, 26, 48, 20, 66, 38, 82, 50, 28, 60,
+    36, 72, 42, 24, 54, 18, 64, 30, 46, 22, 58, 34, 40, 16, 52, 26,
+];
 
 export default function ProcessSection() {
     const rootRef = useRef(null);
     const stageRef = useRef(null);
-    const fillRef = useRef(null); // ← progress bar fill
-    const counterRef = useRef(null); // ← step counter
 
     useGSAP(
         () => {
             const q = gsap.utils.selector(rootRef);
             const steps = q("[data-step]");
-            const nodes = q("[data-node]");
 
-            const setActive = (idx) => {
-                nodes.forEach((n, i) => (n.dataset.active = i <= idx ? "true" : "false"));
-                if (counterRef.current)
-                    counterRef.current.textContent = String(idx + 1).padStart(2, "0");
-            };
+            // iOS/Android fire resize every time the URL bar collapses. Without
+            // this the pin recalculates mid-scroll, which reads as a jump.
+            ScrollTrigger.config({ ignoreMobileResize: true });
 
             const mm = gsap.matchMedia();
 
-            /* ---------- Desktop: pinned scroll sequence ---------- */
+            /* ---------------- Desktop: pinned scrub sequence ---------------- */
             mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
-                gsap.set(steps, { position: "absolute", inset: 0, autoAlpha: 0, yPercent: 45 });
+                gsap.set(steps, {
+                    position: "absolute",
+                    inset: 0,
+                    autoAlpha: 0,
+                    yPercent: 6,
+                    force3D: true,
+                });
                 gsap.set(steps[0], { autoAlpha: 1, yPercent: 0 });
-                setActive(0);
 
                 const tl = gsap.timeline({
+                    defaults: { force3D: true },
                     scrollTrigger: {
                         trigger: rootRef.current,
-                        start: "center center",
-                        end: `+=${(STEPS.length - 1) * 100}%`,
+                        start: "top top-=10px", // 10px অফসেট দিলে স্ক্রোল ঢোকার সাথে সাথে পিন পজিশনে লক হবে
+                        end: () => `+=${window.innerHeight * STEPS.length}`,
                         pin: stageRef.current,
-                        scrub: 1,
+                        pinSpacing: true,
+                        scrub: 0.5,
                         anticipatePin: 1,
+                        fastScrollEnd: true,
                         invalidateOnRefresh: true,
-                        snap: {
-                            snapTo: gsap.utils.snap(1 / (STEPS.length - 1)),
-                            duration: { min: 0.25, max: 0.6 },
-                            delay: 0.06,
-                            ease: "power1.inOut",
-                        },
-                        onUpdate: (self) => {
-                            // ✅ fillRef.current এখন null হবে না
-                            if (fillRef.current) {
-                                fillRef.current.style.transform = `scaleX(${self.progress})`;
-                            }
-                            setActive(Math.round(self.progress * (STEPS.length - 1)));
-                        },
                     },
                 });
 
-                for (let i = 1; i < steps.length; i++) {
+                // 🌟 ১ম ইমেজকে পজিশনে হোল্ড করে রাখার জন্য ইনিশিয়াল ডেড-জোন
+                tl.to({}, { duration: 0.4 });
+
+                for (let i = 1; i < steps.length; i += 1) {
+                    const at = i;
+                    const shot = steps[i].querySelector("[data-shot]");
+
                     tl.to(
                         steps[i - 1],
-                        { autoAlpha: 0, yPercent: -45, ease: "power2.inOut", duration: 0.6 },
-                        i - 1,
-                    )
-                        .fromTo(
-                            steps[i],
-                            { autoAlpha: 0, yPercent: 45 },
-                            { autoAlpha: 1, yPercent: 0, ease: "power2.out", duration: 0.6 },
-                            i - 1 + 0.12,
-                        )
-                        // Image eases in from a slight over-scale as its step arrives
-                        .fromTo(
-                            steps[i].querySelector("[data-img]"),
-                            { scale: 1.14 },
-                            { scale: 1, ease: "power2.out", duration: 0.8 },
-                            i - 1 + 0.12,
+                        { autoAlpha: 0, yPercent: -6, duration: 0.55, ease: "power2.inOut" },
+                        at,
+                    ).fromTo(
+                        steps[i],
+                        { autoAlpha: 0, yPercent: 6 },
+                        { autoAlpha: 1, yPercent: 0, duration: 0.55, ease: "power2.out" },
+                        at + 0.15,
+                    );
+
+                    if (shot) {
+                        tl.fromTo(
+                            shot,
+                            { scale: 1.07 },
+                            { scale: 1, duration: 0.8, ease: "power2.out" },
+                            at + 0.15,
                         );
+                    }
+
+                    // স্টেপগুলোর মাঝে হোল্ড টাইম
+                    tl.to({}, { duration: 0.3 });
                 }
             });
 
-            /* ---------- Mobile / reduced-motion: vertical reveal ---------- */
+            /* -------- Mobile / reduced-motion: batched vertical reveal -------- */
             mm.add("(max-width: 1023px), (prefers-reduced-motion: reduce)", () => {
-                gsap.set(steps, { clearProps: "all" });
-                setActive(STEPS.length - 1);
-                if (fillRef.current) fillRef.current.style.transform = "scaleX(1)";
+                gsap.set(steps, { autoAlpha: 0, y: 28, force3D: true });
 
-                steps.forEach((step) => {
-                    gsap.from(step, {
-                        y: 40,
-                        opacity: 0,
-                        duration: 0.7,
-                        ease: "power3.out",
-                        scrollTrigger: { trigger: step, start: "top 85%", once: true },
-                    });
+                // One trigger for the whole group instead of four independent
+                // ones — fewer scroll listeners, fewer layout reads per frame.
+                const batch = ScrollTrigger.batch(steps, {
+                    start: "top 88%",
+                    once: true,
+                    onEnter: (targets) =>
+                        gsap.to(targets, {
+                            autoAlpha: 1,
+                            y: 0,
+                            duration: 0.6,
+                            ease: "power3.out",
+                            stagger: 0.1,
+                            overwrite: true,
+                        }),
                 });
+
+                return () => batch.forEach((st) => st.kill());
             });
 
-            /* Heading reveal (both modes) */
-            gsap.from(q("[data-word]"), {
-                yPercent: 110,
-                duration: 1.1,
-                ease: "power4.out",
-                stagger: 0.03,
-                scrollTrigger: { trigger: rootRef.current, start: "top 82%", once: true },
-            });
+            /* ---------------- Heading reveal (both modes) ---------------- */
+            const words = q("[data-word]");
+            const headingInView =
+                rootRef.current.getBoundingClientRect().top < window.innerHeight * 0.82;
+
+            gsap.fromTo(
+                words,
+                { yPercent: 110 },
+                {
+                    yPercent: 0,
+                    duration: 1.1,
+                    ease: "power4.out",
+                    stagger: 0.03,
+                    // Never pre-render the hidden state: if the trigger misses,
+                    // the heading stays readable instead of sitting clipped.
+                    immediateRender: false,
+                    ...(headingInView
+                        ? {}
+                        : {
+                              scrollTrigger: {
+                                  trigger: rootRef.current,
+                                  start: "top 82%",
+                                  once: true,
+                              },
+                          }),
+                },
+            );
+
+            const refresh = () => ScrollTrigger.refresh();
+            if (document.fonts?.ready) document.fonts.ready.then(refresh).catch(() => {});
 
             return () => mm.revert();
         },
@@ -171,30 +199,42 @@ export default function ProcessSection() {
     );
 
     return (
-        <section ref={rootRef} id="process" aria-label="How it works" className="bg-surface">
+        <section ref={rootRef} aria-label="How it works" className="relative isolate bg-surface">
+            {/* ---- Studio backdrop: frequency grid + spectrum ridge ---- */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+                <div className="absolute inset-0 opacity-70" />
+                <div className="absolute inset-x-0 bottom-0 flex h-48 items-end gap-0.75 px-5 opacity-[0.18] md:px-8">
+                    {SPECTRUM.map((h, i) => (
+                        <span
+                            key={i}
+                            style={{ height: `${h}%` }}
+                            className="flex-1 bg-linear-to-t from-brand-orange to-transparent"
+                        />
+                    ))}
+                </div>
+            </div>
+
             <div
                 ref={stageRef}
-                className="mx-auto flex max-w-7xl flex-col px-5 py-12 sm:py-24 md:px-8 lg:h-screen lg:justify-center lg:py-0"
+                className="mx-auto flex max-w-7xl flex-col px-5 py-12 sm:py-24 md:px-8 lg:h-screen lg:justify-center lg:py-0 motion-reduce:lg:h-auto motion-reduce:lg:py-24"
             >
                 {/* ---- Header row ---- */}
                 <div className="flex items-end justify-between gap-6 border-b border-border-subtle pb-8">
                     <div>
-                        <p className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
-                            <span className="h-2 w-2 rounded-full bg-brand-orange" />
-                            How It Works
+                        <p className="flex items-center gap-2.5 font-display text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
+                            <span className="text-brand-orange text-[14px]">✦</span> How It Works
                         </p>
-                        <h2 className="mt-4 font-serif text-3xl font-black leading-[1.05] tracking-tight text-content sm:text-4xl lg:text-5xl">
-                            <SplitWords text="A clear path from" />{" "}
+                        <h2 className="mt-5 font-display text-4xl font-medium leading-[1.05] tracking-[-0.02em] text-content sm:text-5xl lg:text-6xl">
+                            <SplitWords text="A clear path from first review to" />{" "}
                             <SplitWords
-                                text="first review"
-                                className="font-serif font-medium italic tracking-normal text-brand-orange"
-                            />{" "}
-                            <SplitWords text="to real momentum." />
+                                text="real momentum."
+                                className="font-serif font-normal italic tracking-normal text-brand-orange"
+                            />
                         </h2>
                     </div>
                     <a
                         href="/#contact"
-                        className="group hidden shrink-0 items-center gap-2 bg-brand-orange px-6 py-3.5 text-sm font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-brand-orange-hover sm:inline-flex"
+                        className="group hidden shrink-0 items-center gap-2 bg-brand-orange px-6 py-3.5 font-display text-sm font-bold uppercase tracking-[0.18em] text-white transition-colors hover:bg-brand-orange-hover sm:inline-flex"
                     >
                         Request my free test
                         <ArrowUpRight
@@ -205,53 +245,50 @@ export default function ProcessSection() {
                 </div>
 
                 {/* ---- Steps viewport ---- */}
-                <div className="relative mt-8 lg:mt-10 lg:min-h-0 lg:flex-1 lg:py-10">
-                    {/* ✅ Progress Rail - এখানে fillRef ব্যবহার করা হয়েছে */}
-                    <div className="absolute left-0 top-0 flex items-center gap-4">
-                        <div className="h-1 w-32 overflow-hidden bg-border-subtle lg:w-48">
-                            <div
-                                ref={fillRef}
-                                className="h-full w-full origin-left scale-x-0 bg-brand-orange transition-transform"
-                            />
-                        </div>
-                        <span
-                            ref={counterRef}
-                            className="font-mono text-sm font-bold tabular-nums text-brand-orange"
-                        >
-                            01
-                        </span>
-                    </div>
-
-                    <div className="relative h-full space-y-8 lg:space-y-0">
+                <div id="process" className="relative mt-10 sm:mt-20 lg:min-h-0 lg:flex-1 lg:py-10">
+                    <div className="relative h-full space-y-12 lg:space-y-0 motion-reduce:lg:space-y-24">
                         {STEPS.map((s) => (
                             <article
                                 key={s.n}
                                 data-step
-                                className="flex h-full flex-col justify-center"
+                                className="flex h-full flex-col justify-center lg:will-change-[transform,opacity]"
                             >
-                                <div className="grid gap-7 lg:grid-cols-2 lg:items-center lg:gap-16">
-                                    {/* Image */}
-                                    <div className="relative">
-                                        <DuoImage
-                                            src={s.img}
-                                            alt={s.alt}
-                                            className="aspect-4/3 w-full lg:aspect-5/4"
-                                        />
-                                        {/* Giant number straddles the image corner */}
-                                        <span
-                                            aria-hidden="true"
-                                            className="pointer-events-none absolute -bottom-2 -left-1 select-none font-serif text-[6rem] font-black leading-none tracking-tighter text-brand-orange lg:bottom-4 lg:text-[11rem]"
-                                        >
-                                            {s.n}
-                                        </span>
-                                    </div>
+                                <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-16">
+                                    {/* ---- Framed shot: no wash, no gradient ---- */}
+                                    <figure className="rounded-[14px] border border-border-subtle bg-surface-raised p-2 shadow-[0_24px_60px_-32px_rgb(0_0_0/0.65)]">
+                                        <figcaption className="flex items-center justify-between px-2 pb-2 pt-1">
+                                            <span className="flex items-center gap-1.5 font-display text-[10px] font-bold uppercase tracking-[0.28em] text-content-muted">
+                                                <span className="text-brand-orange">{s.n}</span>
+                                                <span aria-hidden="true">/</span>
+                                                {s.tag}
+                                            </span>
+                                            <span
+                                                aria-hidden="true"
+                                                className="flex items-center gap-1"
+                                            >
+                                                <span className="h-1 w-1 bg-brand-orange" />
+                                                <span className="h-1 w-1 bg-border-subtle" />
+                                                <span className="h-1 w-1 bg-border-subtle" />
+                                            </span>
+                                        </figcaption>
+                                        <div className="overflow-hidden rounded-lg">
+                                            <img
+                                                data-shot
+                                                src={s.img}
+                                                alt={s.alt}
+                                                loading="lazy"
+                                                decoding="async"
+                                                className="aspect-4/3 w-full object-cover lg:aspect-5/4"
+                                            />
+                                        </div>
+                                    </figure>
 
-                                    {/* Copy */}
+                                    {/* ---- Copy ---- */}
                                     <div className="lg:pl-4">
-                                        <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
-                                            {s.tag} · Step {s.n} / 0{STEPS.length}
+                                        <p className="font-display text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
+                                            Step {s.n} of 0{STEPS.length}
                                         </p>
-                                        <h3 className="mt-4 font-serif text-3xl font-black tracking-tight text-content sm:text-4xl lg:text-6xl">
+                                        <h3 className="mt-4 font-display text-3xl font-semibold tracking-[-0.02em] text-content sm:text-4xl lg:text-5xl">
                                             {s.title}
                                         </h3>
                                         <p className="mt-5 max-w-xl text-base leading-relaxed text-content-muted lg:text-xl">

@@ -1,9 +1,11 @@
 /* eslint-disable react-hooks/incompatible-library */
 // src/components/client/home/ContactSection.jsx
 // Form-first. The intake terminal IS the section — centered on the stage,
-// framed like a console, with only a compact headline above it. Custom
-// accessible listboxes (no native <select>), magnetic submit, shake on
-// failure, GSAP crossfade to success. Posts via leadApi.submitLead.
+// framed like a console. Fields are now distinct framed wells (was bottom-
+// rule only), the card carries an ambient orange glow, and the custom
+// listbox matches the text inputs. Custom accessible listboxes (no native
+// <select>), magnetic submit, shake on failure, GSAP crossfade to success.
+// Posts via leadApi.submitLead.
 import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import gsap from "gsap";
@@ -18,6 +20,28 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 const prefersReduced = () =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---- Shared field vocabulary: one source of truth for the new box look ---- */
+const LABEL = "mb-2 block text-[11px] font-bold uppercase tracking-[0.2em] text-content";
+
+// Base well: framed, filled, high-contrast typed text, readable placeholder.
+const FIELD_BASE =
+    "w-full rounded-lg border bg-surface/80 px-4 py-3.5 text-base font-bold text-content " +
+    "outline-none transition-all duration-200 placeholder:font-medium " +
+    "placeholder:text-content-muted/60 focus:bg-surface focus:ring-2 sm:text-lg";
+
+const fieldCls = (err) =>
+    `${FIELD_BASE} ${
+        err
+            ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+            : "border-border-subtle focus:border-brand-orange focus:ring-brand-orange/20"
+    }`;
+
+const errSlot = (err) => (
+    <p className={`mt-1.5 text-xs font-semibold text-red-500 ${err ? "" : "invisible"}`}>
+        {err?.message || "\u00A0"}
+    </p>
+);
 
 /* ------------------------------------------------------------------ */
 /*  Live console EQ — tiny brand tell in the terminal header           */
@@ -55,7 +79,7 @@ function HeaderEq() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  TerminalSelect — custom accessible listbox (no native <select>)    */
+/*  TerminalSelect — custom accessible listbox, styled to match inputs */
 /* ------------------------------------------------------------------ */
 
 function TerminalSelect({ label, placeholder, options, value, onChange, error }) {
@@ -144,12 +168,21 @@ function TerminalSelect({ label, placeholder, options, value, onChange, error })
         }
     };
 
+    // Same framed-box grammar as the text inputs, plus the open/error states.
+    const btnCls = [
+        "flex w-full items-center justify-between rounded-lg border bg-surface/80 px-4 py-3.5",
+        "text-left outline-none transition-all duration-200",
+        "focus-visible:ring-2 focus-visible:ring-brand-orange/20 focus-visible:border-brand-orange",
+        error
+            ? "border-red-500"
+            : open
+              ? "border-brand-orange bg-surface ring-2 ring-brand-orange/20"
+              : "border-border-subtle hover:border-brand-orange/60",
+    ].join(" ");
+
     return (
         <div ref={rootRef} className={`relative ${open ? "z-40" : ""}`} onKeyDown={onKeyDown}>
-            <label
-                id={`${uid}-label`}
-                className="text-[10px] font-bold uppercase tracking-[0.3em] text-content-muted"
-            >
+            <label id={`${uid}-label`} className={LABEL}>
                 {label}
             </label>
             <button
@@ -162,17 +195,11 @@ function TerminalSelect({ label, placeholder, options, value, onChange, error })
                 aria-controls={`${uid}-list`}
                 aria-activedescendant={open && hi >= 0 ? `${uid}-opt-${hi}` : undefined}
                 onClick={() => (open ? setOpen(false) : openList())}
-                className={`mt-1 flex w-full items-center justify-between border-b-2 py-3 text-left transition-colors duration-300 ${
-                    error
-                        ? "border-red-500"
-                        : open
-                          ? "border-brand-orange"
-                          : "border-border-subtle hover:border-brand-orange/60"
-                }`}
+                className={btnCls}
             >
                 <span
-                    className={`text-lg font-bold ${
-                        selectedIdx >= 0 ? "text-content" : "font-medium text-content-muted/40"
+                    className={`text-base font-bold sm:text-lg ${
+                        selectedIdx >= 0 ? "text-content" : "font-medium text-content-muted/60"
                     }`}
                 >
                     {selectedIdx >= 0 ? opts[selectedIdx].label : placeholder}
@@ -191,7 +218,7 @@ function TerminalSelect({ label, placeholder, options, value, onChange, error })
                     id={`${uid}-list`}
                     role="listbox"
                     aria-labelledby={`${uid}-label`}
-                    className="absolute inset-x-0 z-50 mt-1 border border-border-subtle bg-surface-raised shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45)]"
+                    className="absolute inset-x-0 z-50 mt-2 overflow-hidden rounded-lg border border-border-subtle bg-surface-raised shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45)]"
                 >
                     {opts.map((o, i) => {
                         const isSel = i === selectedIdx;
@@ -220,9 +247,7 @@ function TerminalSelect({ label, placeholder, options, value, onChange, error })
                 </ul>
             )}
 
-            <p className={`mt-1.5 text-xs font-semibold text-red-500 ${error ? "" : "invisible"}`}>
-                {error?.message || "\u00A0"}
-            </p>
+            {errSlot(error)}
         </div>
     );
 }
@@ -255,8 +280,14 @@ export default function ContactSection() {
         },
     });
 
-    register("primaryGoal", { required: "Pick your primary goal" });
-    register("targetMarket", { required: "Pick a target market" });
+    // Register the two custom (non-input) fields once, in an effect — not in
+    // render. `register` is stable, so this runs a single time and keeps the
+    // render phase side-effect-free.
+    useEffect(() => {
+        register("primaryGoal", { required: "Pick your primary goal" });
+        register("targetMarket", { required: "Pick a target market" });
+    }, [register]);
+
     const goal = watch("primaryGoal");
     const market = watch("targetMarket");
 
@@ -371,22 +402,9 @@ export default function ContactSection() {
         }
     };
 
-    const field =
-        "w-full bg-transparent py-3 text-lg font-bold text-content outline-none placeholder:font-medium placeholder:text-content-muted/40";
-    const line = (err) =>
-        `mt-1 border-b-2 transition-colors duration-300 ${
-            err ? "border-red-500" : "border-border-subtle focus-within:border-brand-orange"
-        }`;
-    const errSlot = (err) => (
-        <p className={`mt-1.5 text-xs font-semibold text-red-500 ${err ? "" : "invisible"}`}>
-            {err?.message || "\u00A0"}
-        </p>
-    );
-
     return (
         <section
             ref={rootRef}
-            id="contact"
             aria-label="Request a free podcast review"
             className="relative overflow-hidden bg-surface py-10 sm:py-24"
         >
@@ -402,21 +420,17 @@ export default function ContactSection() {
                 }}
             />
 
-            <div className="relative mx-auto max-w-3xl px-5 md:px-8">
+            <div className="relative mx-auto max-w-4xl px-5 md:px-8">
                 {/* ---- Compact centered header ---- */}
                 <div className="text-center">
-                    <p
-                        data-intro
-                        className="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted"
-                    >
-                        <span className="h-2 w-2 rounded-full bg-brand-orange" />
-                        Start With A Review
+                    <p className="inline-flex items-center gap-2.5 font-display text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
+                        <span className="text-brand-orange text-[14px]">✦</span> Start With A Review
                     </p>
-                    <h2 className="mt-5 text-4xl font-black leading-[1.04] tracking-tight text-content sm:text-5xl lg:text-6xl">
-                        <SplitWords text="Ready for" className="font-serif" />{" "}
+                    <h2 className="mt-5 font-display text-4xl font-medium leading-[1.04] tracking-[-0.02em] text-content sm:text-5xl lg:text-6xl">
+                        <SplitWords text="Ready for" />{" "}
                         <SplitWords
                             text="more momentum?"
-                            className="font-serif font-medium italic tracking-normal text-brand-orange"
+                            className="font-serif text-[1.06em] font-normal italic tracking-normal text-brand-orange"
                         />
                     </h2>
                     <p
@@ -430,8 +444,9 @@ export default function ContactSection() {
 
                 {/* ---- The intake terminal (the section's hero) ---- */}
                 <div
+                    id="contact"
                     ref={panelRef}
-                    className="mt-12 border border-border-subtle bg-surface-raised/60 backdrop-blur-xl"
+                    className="mt-12 rounded-2xl border border-brand-orange/25 bg-surface-raised/90 shadow-[0_0_50px_-15px_rgba(255,87,34,0.18)] backdrop-blur-2xl"
                 >
                     {/* Console header strip */}
                     <div className="flex items-center justify-between border-b border-border-subtle px-6 py-3.5">
@@ -450,13 +465,13 @@ export default function ContactSection() {
                             <div className="flex flex-col items-center py-8 text-center">
                                 <span
                                     data-success
-                                    className="grid h-14 w-14 place-items-center border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 shadow-[0_0_26px_rgba(16,185,129,0.28)]"
+                                    className="grid h-14 w-14 place-items-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 shadow-[0_0_26px_rgba(16,185,129,0.28)]"
                                 >
                                     <Check size={24} />
                                 </span>
                                 <h3
                                     data-success
-                                    className="mt-6 text-2xl font-black tracking-tight text-content sm:text-3xl"
+                                    className="mt-6 font-display text-2xl font-semibold tracking-[-0.02em] text-content sm:text-3xl"
                                 >
                                     Transmission received.
                                 </h3>
@@ -470,7 +485,7 @@ export default function ContactSection() {
                                     data-success
                                     type="button"
                                     onClick={() => setDone(null)}
-                                    className="mt-7 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-content transition-colors hover:text-brand-orange"
+                                    className="mt-7 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-content transition-colors hover:text-brand-orange"
                                 >
                                     Send another request
                                     <ArrowUpRight size={13} />
@@ -485,70 +500,60 @@ export default function ContactSection() {
                                 {/* Name + Email */}
                                 <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
                                     <div data-field>
-                                        <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-content-muted">
-                                            Full name
-                                        </label>
-                                        <div className={line(errors.fullName)}>
-                                            <input
-                                                type="text"
-                                                autoComplete="name"
-                                                placeholder="Your name"
-                                                {...register("fullName", {
-                                                    required: "Name is required",
-                                                    maxLength: { value: 120, message: "Too long" },
-                                                })}
-                                                className={field}
-                                            />
-                                        </div>
+                                        <label className={LABEL}>Full name</label>
+                                        <input
+                                            type="text"
+                                            autoComplete="name"
+                                            placeholder="Your name"
+                                            {...register("fullName", {
+                                                required: "Name is required",
+                                                maxLength: { value: 120, message: "Too long" },
+                                            })}
+                                            className={fieldCls(errors.fullName)}
+                                        />
                                         {errSlot(errors.fullName)}
                                     </div>
                                     <div data-field>
-                                        <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-content-muted">
-                                            Business email
-                                        </label>
-                                        <div className={line(errors.email)}>
-                                            <input
-                                                type="email"
-                                                autoComplete="email"
-                                                placeholder="you@show.com"
-                                                {...register("email", {
-                                                    required: "Email is required",
-                                                    pattern: {
-                                                        value: /^\S+@\S+\.\S+$/,
-                                                        message: "Enter a valid email",
-                                                    },
-                                                })}
-                                                className={field}
-                                            />
-                                        </div>
+                                        <label className={LABEL}>Business email</label>
+                                        <input
+                                            type="email"
+                                            autoComplete="email"
+                                            placeholder="you@show.com"
+                                            {...register("email", {
+                                                required: "Email is required",
+                                                pattern: {
+                                                    value: /^\S+@\S+\.\S+$/,
+                                                    message: "Enter a valid email",
+                                                },
+                                            })}
+                                            className={fieldCls(errors.email)}
+                                        />
                                         {errSlot(errors.email)}
                                     </div>
                                 </div>
 
                                 {/* Podcast link */}
                                 <div data-field>
-                                    <div className="flex items-baseline justify-between">
-                                        <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-content-muted">
+                                    <div className="mb-2 flex items-baseline justify-between">
+                                        <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-content">
                                             Podcast link
                                         </label>
                                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-content-muted/50">
                                             Optional
                                         </span>
                                     </div>
-                                    <div className={line(errors.podcastLink)}>
-                                        <input
-                                            type="url"
-                                            placeholder="Apple Podcasts or Spotify URL"
-                                            {...register("podcastLink", {
-                                                pattern: {
-                                                    value: /^https?:\/\/.+/,
-                                                    message:
-                                                        "Include the full URL, starting with https://",
-                                                },
-                                            })}
-                                            className={field}
-                                        />
-                                    </div>
+                                    <input
+                                        type="url"
+                                        placeholder="Apple Podcasts or Spotify URL"
+                                        {...register("podcastLink", {
+                                            pattern: {
+                                                value: /^https?:\/\/.+/,
+                                                message:
+                                                    "Include the full URL, starting with https://",
+                                            },
+                                        })}
+                                        className={fieldCls(errors.podcastLink)}
+                                    />
                                     {errSlot(errors.podcastLink)}
                                 </div>
 
@@ -584,22 +589,18 @@ export default function ContactSection() {
 
                                 {/* Notes */}
                                 <div data-field>
-                                    <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-content-muted">
-                                        Anything we should know?
-                                    </label>
-                                    <div className={line(errors.notes)}>
-                                        <textarea
-                                            rows={2}
-                                            placeholder="Niche, release schedule, past promotion…"
-                                            {...register("notes", {
-                                                maxLength: {
-                                                    value: 2000,
-                                                    message: "Keep it under 2000 characters",
-                                                },
-                                            })}
-                                            className={`${field} resize-none`}
-                                        />
-                                    </div>
+                                    <label className={LABEL}>Anything we should know?</label>
+                                    <textarea
+                                        rows={3}
+                                        placeholder="Niche, release schedule, past promotion…"
+                                        {...register("notes", {
+                                            maxLength: {
+                                                value: 2000,
+                                                message: "Keep it under 2000 characters",
+                                            },
+                                        })}
+                                        className={`${fieldCls(errors.notes)} resize-none`}
+                                    />
                                     {errSlot(errors.notes)}
                                 </div>
 
@@ -610,7 +611,7 @@ export default function ContactSection() {
                                         disabled={isSubmitting}
                                         onMouseMove={onBtnMove}
                                         onMouseLeave={onBtnLeave}
-                                        className="group flex w-full items-center justify-center gap-2 bg-brand-orange px-6 py-4 text-sm font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
+                                        className="group flex w-full items-center justify-center gap-2 rounded-lg bg-brand-orange px-6 py-4 text-sm font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
                                     >
                                         {isSubmitting ? (
                                             <Loader2 size={18} className="animate-spin" />
@@ -619,7 +620,7 @@ export default function ContactSection() {
                                                 Prepare my free podcast review
                                                 <ArrowUpRight
                                                     size={16}
-                                                    className="hidden sm:block transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                                                    className="hidden transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 sm:block"
                                                 />
                                             </>
                                         )}
