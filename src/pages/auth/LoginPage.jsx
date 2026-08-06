@@ -197,7 +197,7 @@ export default function LoginPage() {
                     </p>
                     <h1
                         data-reveal
-                        className="mt-3 text-4xl font-black font-serif leading-[1.02] tracking-tight sm:text-5xl"
+                        className="mt-3 text-4xl font-medium leading-[1.02] tracking-tight sm:text-5xl"
                     >
                         Unlock the{" "}
                         <span className="font-serif font-medium italic tracking-normal text-brand-orange">

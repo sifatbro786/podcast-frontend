@@ -43,7 +43,7 @@ export default function Topbar({ title, onMenu }) {
                     <Menu size={17} />
                 </button>
                 <div className="min-w-0">
-                    <h1 className="truncate font-serif text-lg font-black tracking-tight text-content">
+                    <h1 className="truncate text-lg font-medium tracking-tight text-content">
                         {title}
                     </h1>
                 </div>

@@ -146,7 +146,7 @@ export default function AdminSelect({
             {label && (
                 <label
                     id={`${uid}-label`}
-                    className="mb-1 block text-[10px] font-bold uppercase tracking-[0.28em] text-content-muted"
+                    className="mb-1 block text-[10px] font-medium uppercase tracking-[0.28em] text-content-muted"
                 >
                     {label}
                 </label>
@@ -162,7 +162,7 @@ export default function AdminSelect({
                 aria-activedescendant={open && hi >= 0 ? `${uid}-opt-${hi}` : undefined}
                 disabled={disabled}
                 onClick={() => (open ? setOpen(false) : openList())}
-                className={`flex w-full items-center justify-between gap-2 border border-border-subtle bg-surface-raised px-3 font-bold text-content transition-colors duration-200 hover:border-brand-orange/60 disabled:cursor-not-allowed disabled:opacity-50 ${pad} ${
+                className={`flex w-full items-center justify-between gap-2 border border-border-subtle bg-surface-raised px-3 font-medium text-content transition-colors duration-200 hover:border-brand-orange/60 disabled:cursor-not-allowed disabled:opacity-50 ${pad} ${
                     open ? "border-brand-orange" : ""
                 }`}
             >
@@ -205,7 +205,7 @@ export default function AdminSelect({
                                     aria-disabled={o.disabled || undefined}
                                     onPointerEnter={() => setHi(i)}
                                     onClick={() => pick(i)}
-                                    className={`flex cursor-pointer items-center justify-between gap-4 whitespace-nowrap px-3 py-2 text-xs font-bold transition-colors ${
+                                    className={`flex cursor-pointer items-center justify-between gap-4 whitespace-nowrap px-3 py-2 text-xs font-medium transition-colors ${
                                         o.disabled
                                             ? "cursor-not-allowed text-content-muted/40"
                                             : isHi

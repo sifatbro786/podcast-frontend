@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/incompatible-library */
 // src/pages/auth/ResetPasswordPage.jsx
 // Consumes the link the backend emails: /reset-password/:token. Posts to
 // PATCH /api/auth/reset-password/:token with the new password (>= 8 chars,
@@ -140,7 +141,7 @@ export default function ResetPasswordPage() {
                             <span data-reveal className="mx-auto grid h-16 w-16 place-items-center border border-border-subtle text-rose-400">
                                 <ShieldX size={26} />
                             </span>
-                            <h1 data-reveal className="mt-6 font-serif text-3xl font-black tracking-tight">
+                            <h1 data-reveal className="mt-6 text-3xl font-medium tracking-tight">
                                 Link expired
                             </h1>
                             <p data-reveal className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-content-muted">
@@ -162,7 +163,7 @@ export default function ResetPasswordPage() {
                             <p data-reveal className="text-[11px] font-black uppercase tracking-[0.35em] text-brand-orange">
                                 Reset Access
                             </p>
-                            <h1 data-reveal className="mt-3 font-serif text-4xl font-black leading-[1.02] tracking-tight sm:text-5xl">
+                            <h1 data-reveal className="mt-3 text-4xl font-medium leading-[1.02] tracking-tight sm:text-5xl">
                                 Set a new{" "}
                                 <span className="font-serif font-medium italic text-brand-orange">key.</span>
                             </h1>

@@ -23,7 +23,7 @@ function EqMotif() {
     );
 }
 
-export default function StatCard({ label, value, hint, loading, accent = false }) {
+export default function StatCard({ label, value, loading, accent = false }) {
     const numRef = useRef(null);
 
     useGSAP(
@@ -64,15 +64,10 @@ export default function StatCard({ label, value, hint, loading, accent = false }
                 ) : (
                     <span
                         ref={numRef}
-                        className="block font-serif text-5xl font-black leading-none tracking-tighter text-content tabular-nums"
+                        className="block text-5xl font-medium leading-none tracking-tighter text-content tabular-nums"
                     >
                         0
                     </span>
-                )}
-                {hint && (
-                    <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.15em] text-content-muted">
-                        {hint}
-                    </p>
                 )}
             </div>
         </div>

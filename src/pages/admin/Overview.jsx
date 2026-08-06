@@ -157,7 +157,7 @@ export default function Overview() {
                         <span className="h-1.5 w-1.5 animate-pulse bg-brand-orange" />
                         Live Signal
                     </p>
-                    <h2 className="mt-3 font-serif text-3xl font-black tracking-tight text-content sm:text-4xl">
+                    <h2 className="mt-3 text-3xl font-medium tracking-tight text-content sm:text-4xl">
                         Everything at a{" "}
                         <span className="font-serif font-medium italic text-brand-orange">
                             glance.
@@ -176,14 +176,12 @@ export default function Overview() {
                     label="New Leads"
                     value={stats.newLeads}
                     loading={loading}
-                    hint="awaiting contact"
                 />
                 <StatCard label="Total Bookings" value={stats.guests} loading={loading} accent />
                 <StatCard
                     label="Pending Bookings"
                     value={stats.pendingGuests}
                     loading={loading}
-                    hint="needs review"
                 />
             </div>
 
@@ -272,7 +270,7 @@ export default function Overview() {
                                         </PieChart>
                                     </ResponsiveContainer>
                                     <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="font-serif text-3xl font-black tabular-nums text-content">
+                                        <span className="text-3xl font-medium tabular-nums text-content">
                                             {guestTotal}
                                         </span>
                                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-content-muted">
@@ -309,7 +307,7 @@ export default function Overview() {
                     render={(l) => (
                         <>
                             <div className="min-w-0">
-                                <p className="truncate text-sm font-black text-content">
+                                <p className="truncate text-sm font-bold text-content">
                                     {l.fullName}
                                 </p>
                                 <p className="truncate text-xs text-content-muted">
@@ -329,7 +327,7 @@ export default function Overview() {
                     render={(g) => (
                         <>
                             <div className="min-w-0">
-                                <p className="truncate text-sm font-black text-content">
+                                <p className="truncate text-sm font-bold text-content">
                                     {g.fullName}
                                 </p>
                                 <p className="truncate text-xs text-content-muted">

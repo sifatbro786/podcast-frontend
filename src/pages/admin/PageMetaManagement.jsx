@@ -83,10 +83,10 @@ function MetaFormModal({ open, initial, onClose, onSaved }) {
             >
                 <div className="sticky top-0 flex items-center justify-between border-b border-border-subtle bg-surface-raised px-6 py-4">
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brand-orange">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-brand-orange">
                             {isEdit ? "Edit" : "New"}
                         </p>
-                        <h2 className="mt-0.5 font-serif text-lg font-black tracking-tight text-content">
+                        <h2 className="mt-0.5 text-lg font-medium tracking-tight text-content">
                             Page metadata
                         </h2>
                     </div>
@@ -169,7 +169,7 @@ function MetaFormModal({ open, initial, onClose, onSaved }) {
                             className="h-4 w-4 accent-brand-orange"
                             {...register("isActive")}
                         />
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-content">
+                        <span className="text-xs font-bold uppercase tracking-[0.18em] text-content">
                             Active
                         </span>
                     </label>
@@ -178,14 +178,14 @@ function MetaFormModal({ open, initial, onClose, onSaved }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="border border-border-subtle px-5 py-2.5 text-xs font-black uppercase tracking-[0.2em] text-content hover:border-content"
+                            className="border border-border-subtle px-5 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-content hover:border-content"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="inline-flex items-center gap-2 bg-brand-orange px-5 py-2.5 text-xs font-black uppercase tracking-[0.2em] text-white hover:bg-brand-orange-hover disabled:opacity-60"
+                            className="inline-flex items-center gap-2 bg-brand-orange px-5 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-white hover:bg-brand-orange-hover disabled:opacity-60"
                         >
                             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                             {isEdit ? "Save changes" : "Create"}
@@ -263,7 +263,7 @@ export default function PageMetaManagement() {
                 header: "Page",
                 cell: (m) => (
                     <div className="min-w-0">
-                        <p className="truncate font-black text-content">{m.pageName}</p>
+                        <p className="truncate font-bold text-content">{m.pageName}</p>
                         {m.pageSlug && (
                             <p className="truncate font-mono text-[11px] text-content-muted">
                                 /{m.pageSlug}
@@ -350,10 +350,10 @@ export default function PageMetaManagement() {
         <div ref={rootRef} className="mx-auto max-w-7xl space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-content-muted">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
                         {rows.length} page{rows.length === 1 ? "" : "s"}
                     </p>
-                    <h2 className="mt-2 font-serif text-2xl font-black tracking-tight text-content sm:text-3xl">
+                    <h2 className="mt-2 text-2xl font-medium tracking-tight text-content sm:text-3xl">
                         Page{" "}
                         <span className="font-serif font-medium italic text-brand-orange">
                             metadata.
@@ -363,7 +363,7 @@ export default function PageMetaManagement() {
                 <button
                     type="button"
                     onClick={() => setEditing(null)}
-                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover"
+                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover"
                 >
                     <Plus size={15} />
                     New page

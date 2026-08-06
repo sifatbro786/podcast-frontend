@@ -600,14 +600,11 @@ export default function HeroSection() {
                     data-fade
                     className="flex items-center justify-between text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase sm:text-[11px] in-[.light]:text-slate-500"
                 >
-                    {/* <p className="flex items-center gap-2.5">
-                        <span className="relative flex h-2 w-2">
-                            <span className="absolute h-full w-full animate-ping rounded-full bg-brand-orange opacity-60" />
-                            <span className="relative h-2 w-2 rounded-full bg-brand-orange" />
-                        </span>
-                        Live transmission
-                    </p> */}
-                    <p className="block">Apple &amp; Spotify growth</p>
+                    {/* <p className="block">Apple &amp; Spotify growth</p> */}
+                    <p className="flex items-center gap-2.5 font-display text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
+                        <span className="text-brand-orange text-[14px]">✦</span> Apple &amp; Spotify
+                        growth
+                    </p>
                 </div>
 
                 {/* Headline — Sora display, Instrument Serif italic accent.

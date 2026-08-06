@@ -61,10 +61,10 @@ function CreateAdminModal({ open, onClose, onSaved }) {
             <div className="relative w-full max-w-md border border-border-subtle bg-surface-raised shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]">
                 <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4">
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brand-orange">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-brand-orange">
                             New
                         </p>
-                        <h2 className="mt-0.5 font-serif text-lg font-black tracking-tight text-content">
+                        <h2 className="mt-0.5 text-lg font-medium tracking-tight text-content">
                             Admin account
                         </h2>
                     </div>
@@ -126,14 +126,14 @@ function CreateAdminModal({ open, onClose, onSaved }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="border border-border-subtle px-5 py-2.5 text-xs font-black uppercase tracking-[0.2em] text-content hover:border-content"
+                            className="border border-border-subtle px-5 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-content hover:border-content"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="inline-flex items-center gap-2 bg-brand-orange px-5 py-2.5 text-xs font-black uppercase tracking-[0.2em] text-white hover:bg-brand-orange-hover disabled:opacity-60"
+                            className="inline-flex items-center gap-2 bg-brand-orange px-5 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-white hover:bg-brand-orange-hover disabled:opacity-60"
                         >
                             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                             Create
@@ -174,7 +174,7 @@ export default function UserManagement() {
 
     useGSAP(
         () => {
-            if (loading || prefersReduced()) return;
+            if (!rootRef.current || loading || prefersReduced()) return;
             gsap.from(rootRef.current.querySelectorAll("[data-row]"), {
                 opacity: 0,
                 y: 10,
@@ -234,7 +234,7 @@ export default function UserManagement() {
                                 {(a.name || "A").charAt(0).toUpperCase()}
                             </span>
                             <div className="min-w-0">
-                                <p className="flex items-center gap-2 truncate font-black text-content">
+                                <p className="flex items-center gap-2 truncate font-semibold text-content">
                                     {a.name}
                                     {self && (
                                         <span className="border border-border-subtle px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.15em] text-content-muted">
@@ -335,9 +335,7 @@ export default function UserManagement() {
                 <span className="grid h-14 w-14 place-items-center border border-border-subtle text-rose-400">
                     <ShieldAlert size={24} />
                 </span>
-                <h2 className="font-serif text-xl font-black tracking-tight text-content">
-                    Restricted area
-                </h2>
+                <h2 className="text-xl font-medium tracking-tight text-content">Restricted area</h2>
                 <p className="max-w-sm text-sm text-content-muted">
                     Admin management is limited to super administrators. Contact a super admin if
                     you need access.
@@ -350,10 +348,10 @@ export default function UserManagement() {
         <div ref={rootRef} className="mx-auto max-w-7xl space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-content-muted">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
                         {rows.length} account{rows.length === 1 ? "" : "s"}
                     </p>
-                    <h2 className="mt-2 font-serif text-2xl font-black tracking-tight text-content sm:text-3xl">
+                    <h2 className="mt-2 text-2xl font-m tracking-tight text-content sm:text-3xl">
                         Admin{" "}
                         <span className="font-serif font-medium italic text-brand-orange">
                             access.
@@ -363,7 +361,7 @@ export default function UserManagement() {
                 <button
                     type="button"
                     onClick={() => setCreating(true)}
-                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover"
+                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover"
                 >
                     <Plus size={15} />
                     New admin

@@ -166,7 +166,7 @@ export default function NotFound() {
 
             <h2
                 data-reveal
-                className="text-2xl font-black uppercase tracking-tight sm:text-3xl"
+                className="text-2xl font-medium uppercase tracking-tight sm:text-3xl"
             >
                 Frequency Offline <span className="text-brand-orange">/</span> Episode Not Found
             </h2>

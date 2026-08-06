@@ -14,11 +14,11 @@
     --color-brand-amber: #f59e0b;
 
     /* Dark Theme Default Variables */
-    --color-dark-bg: #080E0E;
-    --color-dark-card: #0A111F;
-    --color-dark-border: #334155;
-    --color-dark-text: #f8fafc;
-    --color-dark-muted: #94a3b8;
+    --color-dark-bg: #080e0e;
+    --color-dark-card: #0f1817; /* surface-raised: subtle lift, same hue as bg */
+    --color-dark-border: #263533; /* hairline that reads on #080E0E without going blue */
+    --color-dark-text: #f4f7f6; /* near-white, neutral (dropped the blue cast) */
+    --color-dark-muted: #8b9e99;
 
     /* Light Theme Variables */
     --color-light-bg: #fafafa;

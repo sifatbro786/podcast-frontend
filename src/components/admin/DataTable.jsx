@@ -57,7 +57,7 @@ export default function DataTable({
                                     <span className="grid h-12 w-12 place-items-center border border-border-subtle text-content-muted">
                                         <Inbox size={20} />
                                     </span>
-                                    <p className="font-serif text-lg font-black tracking-tight text-content">
+                                    <p className="text-lg font-medium tracking-tight text-content">
                                         {emptyTitle}
                                     </p>
                                     <p className="max-w-xs text-sm text-content-muted">

@@ -26,9 +26,9 @@ const LABEL = "mb-2 block text-[11px] font-bold uppercase tracking-[0.2em] text-
 
 // Base well: framed, filled, high-contrast typed text, readable placeholder.
 const FIELD_BASE =
-    "w-full rounded-lg border bg-surface/80 px-4 py-3.5 text-base font-bold text-content " +
+    "w-full rounded-lg border bg-surface/80 px-4 py-3.5 text-base font-medium text-content " +
     "outline-none transition-all duration-200 placeholder:font-medium " +
-    "placeholder:text-content-muted/60 focus:bg-surface focus:ring-2 sm:text-lg";
+    "placeholder:text-content-muted/60 focus:bg-surface focus:ring-2";
 
 const fieldCls = (err) =>
     `${FIELD_BASE} ${

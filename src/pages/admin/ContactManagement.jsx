@@ -128,7 +128,7 @@ export default function ContactManagement() {
                 header: "Lead",
                 cell: (l) => (
                     <div className="min-w-0">
-                        <p className="truncate font-black text-content">{l.fullName}</p>
+                        <p className="truncate font-bold text-content">{l.fullName}</p>
                         <p className="truncate text-xs text-content-muted">{l.businessEmail}</p>
                     </div>
                 ),
@@ -211,10 +211,10 @@ export default function ContactManagement() {
             {/* Toolbar */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-content-muted">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
                         {meta.total} record{meta.total === 1 ? "" : "s"}
                     </p>
-                    <h2 className="mt-2 font-serif text-2xl font-black tracking-tight text-content sm:text-3xl">
+                    <h2 className="mt-2 text-2xl font-medium tracking-tight text-content sm:text-3xl">
                         Inbound{" "}
                         <span className="font-serif font-medium italic text-brand-orange">
                             leads.
@@ -225,7 +225,7 @@ export default function ContactManagement() {
                     type="button"
                     onClick={handleExport}
                     disabled={exporting}
-                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
+                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
                 >
                     {exporting ? (
                         <Loader2 size={15} className="animate-spin" />

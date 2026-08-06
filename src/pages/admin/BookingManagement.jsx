@@ -1,17 +1,20 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 // src/pages/admin/BookingManagement.jsx
-// Guest bookings table. Mirrors ContactManagement but with an added category
-// filter and the guest schema's shorter field set (no detail drawer needed).
+// Guest bookings table. Mirrors ContactManagement with a category filter, the
+// guest schema's field set, and a portfolio column: resumes stream through the
+// authed download helper (blob), portfolio links open in a new tab.
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { Download, Loader2, Phone, Trash2 } from "lucide-react";
+import { Download, ExternalLink, Eye, FileText, Loader2, Phone, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import AdminSelect from "../../components/admin/AdminSelect";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import DataTable from "../../components/admin/DataTable";
 import Pagination from "../../components/admin/Pagination";
+import RecordDrawer, { DrawerField } from "../../components/admin/RecordDrawer";
 import SearchBar from "../../components/admin/SearchBar";
+import StatusBadge from "../../components/admin/StatusBadge";
 import { formatDate, prefersReduced, titleCase } from "../../components/admin/adminUtils";
 import { useDebounce } from "../../hooks/useDebounce";
 import {
@@ -20,6 +23,7 @@ import {
     bookingApi,
     bookingErrorMessage,
     downloadBookingsExcel,
+    downloadGuestResume,
 } from "../../services/bookingApi";
 
 const STATUS_OPTIONS = [
@@ -32,6 +36,9 @@ const CATEGORY_OPTIONS = [
     ...PODCAST_CATEGORIES.map((c) => ({ value: c, label: c })),
 ];
 
+/* Prefer the new categories[] but gracefully fall back to legacy single category. */
+const catList = (g) => (g.categories?.length ? g.categories : g.category ? [g.category] : []);
+
 export default function BookingManagement() {
     const rootRef = useRef(null);
     const [rows, setRows] = useState([]);
@@ -43,8 +50,10 @@ export default function BookingManagement() {
     const [search, setSearch] = useState("");
     const debounced = useDebounce(search, 350);
 
+    const [selected, setSelected] = useState(null); // drawer
     const [toDelete, setToDelete] = useState(null);
     const [exporting, setExporting] = useState(false);
+    const [resumeBusy, setResumeBusy] = useState(null);
 
     useEffect(() => setPage(1), [status, category, debounced]);
 
@@ -96,6 +105,17 @@ export default function BookingManagement() {
         }
     };
 
+    const handleResume = async (guest) => {
+        try {
+            setResumeBusy(guest._id);
+            await downloadGuestResume(guest);
+        } catch (err) {
+            toast.error(bookingErrorMessage(err, "Could not download resume"));
+        } finally {
+            setResumeBusy(null);
+        }
+    };
+
     const confirmDelete = async () => {
         try {
             await bookingApi.deleteBooking(toDelete._id);
@@ -125,11 +145,23 @@ export default function BookingManagement() {
             {
                 key: "name",
                 header: "Guest",
-                cell: (g) => <p className="font-black text-content">{g.fullName}</p>,
+                cell: (g) => (
+                    <div className="min-w-0">
+                        <p className="font-semibold text-content">{g.fullName}</p>
+                        {g.email && (
+                            <a
+                                href={`mailto:${g.email}`}
+                                className="block truncate text-[11px] font-semibold text-content-muted transition-colors hover:text-brand-orange"
+                            >
+                                {g.email}
+                            </a>
+                        )}
+                    </div>
+                ),
             },
             {
                 key: "phone",
-                header: "Phone",
+                header: "WhatsApp",
                 className: "hidden sm:table-cell",
                 cell: (g) => (
                     <a
@@ -142,10 +174,74 @@ export default function BookingManagement() {
                 ),
             },
             {
-                key: "category",
-                header: "Category",
+                key: "categories",
+                header: "Categories",
                 className: "hidden md:table-cell",
-                cell: (g) => <span className="text-xs font-bold text-content">{g.category}</span>,
+                cell: (g) => {
+                    const list = catList(g);
+                    if (!list.length) return <span className="text-content-muted/50">—</span>;
+                    const shown = list.slice(0, 2);
+                    const extra = list.length - shown.length;
+                    return (
+                        <div className="flex flex-wrap items-center gap-1">
+                            {shown.map((c) => (
+                                <span
+                                    key={c}
+                                    className="inline-block border border-border-subtle px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-content"
+                                >
+                                    {c}
+                                </span>
+                            ))}
+                            {extra > 0 && (
+                                <span className="text-[10px] font-bold text-content-muted">
+                                    +{extra}
+                                </span>
+                            )}
+                        </div>
+                    );
+                },
+            },
+            {
+                key: "portfolio",
+                header: "Portfolio",
+                className: "hidden lg:table-cell",
+                cell: (g) => {
+                    const busy = resumeBusy === g._id;
+                    if (!g.resume && !g.portfolioLink)
+                        return <span className="text-content-muted/50">—</span>;
+                    return (
+                        <div className="flex items-center gap-1.5">
+                            {g.resume && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleResume(g)}
+                                    disabled={busy}
+                                    title={g.resume.originalName}
+                                    className="inline-flex items-center gap-1 border border-border-subtle px-2 py-1 text-[11px] font-bold text-content transition-colors hover:border-brand-orange hover:text-brand-orange disabled:opacity-60"
+                                >
+                                    {busy ? (
+                                        <Loader2 size={12} className="animate-spin" />
+                                    ) : (
+                                        <FileText size={12} />
+                                    )}
+                                    Resume
+                                </button>
+                            )}
+                            {g.portfolioLink && (
+                                <a
+                                    href={g.portfolioLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer external"
+                                    title={g.portfolioLink}
+                                    className="inline-flex items-center gap-1 border border-border-subtle px-2 py-1 text-[11px] font-bold text-content transition-colors hover:border-brand-orange hover:text-brand-orange"
+                                >
+                                    <ExternalLink size={12} />
+                                    Link
+                                </a>
+                            )}
+                        </div>
+                    );
+                },
             },
             {
                 key: "status",
@@ -164,7 +260,7 @@ export default function BookingManagement() {
             {
                 key: "created",
                 header: "Submitted",
-                className: "hidden lg:table-cell",
+                className: "hidden xl:table-cell",
                 cell: (g) => (
                     <span className="whitespace-nowrap text-xs text-content-muted">
                         {formatDate(g.createdAt)}
@@ -176,28 +272,39 @@ export default function BookingManagement() {
                 header: "",
                 className: "text-right",
                 cell: (g) => (
-                    <button
-                        type="button"
-                        onClick={() => setToDelete(g)}
-                        aria-label="Delete booking"
-                        className="grid h-8 w-8 place-items-center border border-transparent text-content-muted transition-colors hover:border-border-subtle hover:text-rose-400"
-                    >
-                        <Trash2 size={15} />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setSelected(g)}
+                            aria-label="View booking"
+                            className="grid h-8 w-8 place-items-center border border-transparent text-content-muted transition-colors hover:border-border-subtle hover:text-brand-orange"
+                        >
+                            <Eye size={15} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setToDelete(g)}
+                            aria-label="Delete booking"
+                            className="grid h-8 w-8 place-items-center border border-transparent text-content-muted transition-colors hover:border-border-subtle hover:text-rose-400"
+                        >
+                            <Trash2 size={15} />
+                        </button>
+                    </div>
                 ),
             },
         ],
-        [],
+        // resumeBusy drives the per-row spinner; the rest close over stable refs.
+        [resumeBusy],
     );
 
     return (
         <div ref={rootRef} className="mx-auto max-w-7xl space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-content-muted">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
                         {meta.total} record{meta.total === 1 ? "" : "s"}
                     </p>
-                    <h2 className="mt-2 font-serif text-2xl font-black tracking-tight text-content sm:text-3xl">
+                    <h2 className="mt-2 text-2xl font-medium tracking-tight text-content sm:text-3xl">
                         Guest{" "}
                         <span className="font-serif font-medium italic text-brand-orange">
                             bookings.
@@ -208,7 +315,7 @@ export default function BookingManagement() {
                     type="button"
                     onClick={handleExport}
                     disabled={exporting}
-                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
+                    className="inline-flex items-center gap-2 bg-brand-orange px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
                 >
                     {exporting ? (
                         <Loader2 size={15} className="animate-spin" />
@@ -235,7 +342,7 @@ export default function BookingManagement() {
                 <SearchBar
                     value={search}
                     onChange={setSearch}
-                    placeholder="Search name…"
+                    placeholder="Search name or email…"
                     className="min-w-48 flex-1"
                 />
             </div>
@@ -250,10 +357,99 @@ export default function BookingManagement() {
 
             <Pagination page={meta.page} pages={meta.pages} total={meta.total} onPage={setPage} />
 
+            {/* Detail drawer — the full record: contact, every category, portfolio */}
+            <RecordDrawer
+                open={!!selected}
+                eyebrow="Booking"
+                title={selected?.fullName || ""}
+                onClose={() => setSelected(null)}
+            >
+                {selected && (
+                    <div>
+                        <div className="mb-4">
+                            <StatusBadge status={selected.status} />
+                        </div>
+                        <DrawerField label="Email">
+                            {selected.email ? (
+                                <a
+                                    href={`mailto:${selected.email}`}
+                                    className="text-brand-orange hover:underline"
+                                >
+                                    {selected.email}
+                                </a>
+                            ) : (
+                                <span className="text-content-muted">—</span>
+                            )}
+                        </DrawerField>
+                        <DrawerField label="WhatsApp">
+                            <a
+                                href={`tel:${selected.phoneNumber}`}
+                                className="text-brand-orange hover:underline"
+                            >
+                                {selected.phoneNumber}
+                            </a>
+                        </DrawerField>
+                        <DrawerField label="Categories">
+                            {catList(selected).length ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {catList(selected).map((c) => (
+                                        <span
+                                            key={c}
+                                            className="inline-block border border-border-subtle px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-content"
+                                        >
+                                            {c}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <span className="text-content-muted">—</span>
+                            )}
+                        </DrawerField>
+                        <DrawerField label="Portfolio Link">
+                            {selected.portfolioLink ? (
+                                <a
+                                    href={selected.portfolioLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-brand-orange hover:underline"
+                                >
+                                    <ExternalLink size={13} />
+                                    {selected.portfolioLink}
+                                </a>
+                            ) : (
+                                <span className="text-content-muted">—</span>
+                            )}
+                        </DrawerField>
+                        <DrawerField label="Resume">
+                            {selected.resume ? (
+                                <button
+                                    type="button"
+                                    onClick={() => handleResume(selected)}
+                                    disabled={resumeBusy === selected._id}
+                                    className="inline-flex items-center gap-1.5 border border-border-subtle px-3 py-1.5 text-xs font-bold text-content transition-colors hover:border-brand-orange hover:text-brand-orange disabled:opacity-60"
+                                >
+                                    {resumeBusy === selected._id ? (
+                                        <Loader2 size={13} className="animate-spin" />
+                                    ) : (
+                                        <FileText size={13} />
+                                    )}
+                                    {selected.resume.originalName || "Download resume"}
+                                </button>
+                            ) : (
+                                <span className="text-content-muted">—</span>
+                            )}
+                        </DrawerField>
+                        <DrawerField label="Submitted">
+                            {formatDate(selected.createdAt)}
+                        </DrawerField>
+                    </div>
+                )}
+            </RecordDrawer>
+
             <ConfirmDialog
                 open={!!toDelete}
                 title="Delete this booking?"
-                message={`${toDelete?.fullName || "This booking"} will be permanently removed. This cannot be undone.`}
+                message={`${toDelete?.fullName || "This booking"} will be permanently removed, along with any uploaded resume. This cannot be undone.`}
                 confirmLabel="Delete booking"
                 onConfirm={confirmDelete}
                 onClose={() => setToDelete(null)}

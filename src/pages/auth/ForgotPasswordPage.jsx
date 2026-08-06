@@ -125,7 +125,7 @@ export default function ForgotPasswordPage() {
                             </p>
                             <h1
                                 data-reveal
-                                className="mt-3 font-serif text-4xl font-black leading-[1.02] tracking-tight sm:text-5xl"
+                                className="mt-3 text-4xl font-medium leading-[1.02] tracking-tight sm:text-5xl"
                             >
                                 Lost the{" "}
                                 <span className="font-serif font-medium italic text-brand-orange">
@@ -208,7 +208,7 @@ export default function ForgotPasswordPage() {
                             </span>
                             <h1
                                 data-reveal
-                                className="mt-6 font-serif text-3xl font-black tracking-tight"
+                                className="mt-6 text-3xl font-medium tracking-tight"
                             >
                                 Check your inbox
                             </h1>

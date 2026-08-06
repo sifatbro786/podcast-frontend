@@ -35,10 +35,10 @@ export default function RecordDrawer({ open, title, eyebrow = "Record", onClose,
             >
                 <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4">
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-brand-orange">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-brand-orange">
                             {eyebrow}
                         </p>
-                        <h2 className="mt-1 font-serif text-lg font-black tracking-tight text-content">
+                        <h2 className="mt-1 text-lg font-bold tracking-tight text-content">
                             {title}
                         </h2>
                     </div>

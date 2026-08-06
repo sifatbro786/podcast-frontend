@@ -79,7 +79,7 @@ export default function ConfirmDialog({
                 <div className="px-5 py-6">
                     <h2
                         id="confirm-title"
-                        className="font-serif text-xl font-black tracking-tight text-content"
+                        className="text-xl font-medium tracking-tight text-content"
                     >
                         {title}
                     </h2>
@@ -92,7 +92,7 @@ export default function ConfirmDialog({
                         type="button"
                         onClick={onClose}
                         disabled={busy}
-                        className="border border-border-subtle px-5 py-2.5 text-xs font-black uppercase tracking-[0.2em] text-content transition-colors hover:border-content disabled:opacity-50"
+                        className="border border-border-subtle px-5 py-2.5 text-xs font-medium uppercase tracking-[0.2em] text-content transition-colors hover:border-content disabled:opacity-50"
                     >
                         Cancel
                     </button>
@@ -100,7 +100,7 @@ export default function ConfirmDialog({
                         type="button"
                         onClick={handleConfirm}
                         disabled={busy}
-                        className="inline-flex items-center gap-2 bg-rose-500 px-5 py-2.5 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-rose-600 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 bg-rose-500 px-5 py-2.5 text-xs font-medium uppercase tracking-[0.2em] text-white transition-colors hover:bg-rose-600 disabled:opacity-60"
                     >
                         {busy ? <Loader2 size={14} className="animate-spin" /> : null}
                         {confirmLabel}

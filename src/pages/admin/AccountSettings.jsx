@@ -12,7 +12,7 @@ import { useAuth } from "../../context/AuthContext";
 function PwField({ label, error, register, show, onToggle, autoComplete }) {
     return (
         <div>
-            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-content-muted">
+            <label className="text-[10px] font-bold uppercase tracking-[0.24em] text-content-muted">
                 {label}
             </label>
             <div className="relative mt-1 border-b-2 border-border-subtle transition-colors focus-within:border-brand-orange">
@@ -66,10 +66,10 @@ export default function AccountSettings() {
     return (
         <div className="mx-auto max-w-2xl space-y-8">
             <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-content-muted">
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-content-muted">
                     Signed in as {user?.email}
                 </p>
-                <h2 className="mt-2 font-serif text-2xl font-black tracking-tight text-content sm:text-3xl">
+                <h2 className="mt-2 ont-serif text-2xl font-medium tracking-tight text-content sm:text-3xl">
                     Account{" "}
                     <span className="font-serif font-medium italic text-brand-orange">
                         settings.
@@ -80,7 +80,7 @@ export default function AccountSettings() {
             <section className="border border-border-subtle bg-surface-raised">
                 <div className="flex items-center gap-2 border-b border-border-subtle px-6 py-4">
                     <KeyRound size={15} className="text-brand-orange" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-content">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-content">
                         Change password
                     </p>
                 </div>
@@ -121,7 +121,7 @@ export default function AccountSettings() {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="inline-flex items-center gap-2 bg-brand-orange px-6 py-3 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
+                            className="inline-flex items-center gap-2 bg-brand-orange px-6 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-brand-orange-hover disabled:opacity-60"
                         >
                             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                             Update password
