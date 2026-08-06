@@ -571,7 +571,7 @@ export default function HeroSection() {
         <section
             ref={rootRef}
             aria-label="Podcast growth agency introduction"
-            className="relative isolate flex min-h-svh flex-col overflow-hidden bg-[#020617] in-[.light]:bg-light-border"
+            className="relative isolate flex sm:min-h-svh flex-col overflow-hidden bg-[#020617] in-[.light]:bg-light-border"
         >
             {/* ---- Background stack: metallic gradient → live strip → scrim ---- */}
             <div
@@ -594,36 +594,32 @@ export default function HeroSection() {
             />
 
             {/* ---- Content: cleared past the fixed navbar, vertically centred ---- */}
-            <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-5 pt-4 pb-12 md:px-10 md:pt-10">
+            <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-5 pt-10 pb-8 sm:pb-12 md:px-10 md:pt-10">
                 {/* Eyebrow */}
                 <div
                     data-fade
                     className="flex items-center justify-between text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase sm:text-[11px] in-[.light]:text-slate-500"
                 >
-                    <p className="flex items-center gap-2.5">
+                    {/* <p className="flex items-center gap-2.5">
                         <span className="relative flex h-2 w-2">
                             <span className="absolute h-full w-full animate-ping rounded-full bg-brand-orange opacity-60" />
                             <span className="relative h-2 w-2 rounded-full bg-brand-orange" />
                         </span>
                         Live transmission
-                    </p>
-                    <p className="hidden sm:block">Apple &amp; Spotify growth</p>
+                    </p> */}
+                    <p className="block">Apple &amp; Spotify growth</p>
                 </div>
 
                 {/* Headline — Sora display, Instrument Serif italic accent.
                     `.line-clip` gives descenders room inside the reveal mask. */}
                 <h1 className="mt-7 font-display font-semibold leading-[1.05] tracking-[-0.02em] text-white lg:mt-9 in-[.light]:text-slate-900">
-                    <span className="line-clip block">
-                        <span data-line className="block text-[clamp(2rem,5.4vw,3.75rem)]">
-                            Turn <span className="bg-brand-orange text-white">your podcast</span> into
-                        </span>
+                    <span data-line className="block text-[clamp(2rem,5.4vw,3.75rem)]">
+                        Turn <span className="bg-brand-orange text-white">your podcast</span> into
                     </span>
-                    <span className="line-clip block">
-                        <span data-line className="block text-[clamp(2rem,5.4vw,3.75rem)]">
-                            a show people{" "}
-                            <span className="font-serif text-[1.08em] font-normal tracking-normal text-brand-orange italic">
-                                discover.
-                            </span>
+                    <span data-line className="inline text-[clamp(2rem,5.4vw,3.75rem)]">
+                        a show people{" "}
+                        <span className="font-serif text-[1.08em] font-normal tracking-normal text-brand-orange italic">
+                            discover.
                         </span>
                     </span>
                 </h1>
