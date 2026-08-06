@@ -611,7 +611,7 @@ export default function HeroSection() {
                     `.line-clip` gives descenders room inside the reveal mask. */}
                 <h1 className="mt-7 font-display font-semibold leading-[1.05] tracking-[-0.02em] text-white lg:mt-9 in-[.light]:text-slate-900">
                     <span data-line className="block text-[clamp(2rem,5.4vw,3.75rem)]">
-                        Turn <span className="bg-brand-orange text-white">your podcast</span> into
+                        Turn your podcast into
                     </span>
                     <span data-line className="inline text-[clamp(2rem,5.4vw,3.75rem)]">
                         a show people{" "}
