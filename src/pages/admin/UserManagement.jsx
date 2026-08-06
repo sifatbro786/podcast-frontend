@@ -230,7 +230,7 @@ export default function UserManagement() {
                     const self = a._id === user?.id;
                     return (
                         <div className="flex items-center gap-3">
-                            <span className="grid h-9 w-9 shrink-0 place-items-center border border-border-subtle bg-surface font-serif text-sm font-black text-brand-orange">
+                            <span className="grid h-9 w-9 shrink-0 place-items-center border border-border-subtle bg-surface text-sm font-black text-brand-orange">
                                 {(a.name || "A").charAt(0).toUpperCase()}
                             </span>
                             <div className="min-w-0">

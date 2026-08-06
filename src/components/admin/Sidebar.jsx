@@ -32,8 +32,8 @@ function EqWordmark() {
 
 export default function Sidebar({ onNavigate, onClose }) {
     const { user, logout } = useAuth();
-    const isSuper = user?.role === "super_admin";
-    const links = NAV.filter((n) => !n.superOnly || isSuper);
+    // const isSuper = user?.role === "super_admin";
+    // const links = NAV.filter((n) => !n.superOnly || isSuper);
 
     return (
         <div className="flex h-full flex-col border-r border-border-subtle bg-surface-raised">
@@ -58,7 +58,7 @@ export default function Sidebar({ onNavigate, onClose }) {
                     Navigation
                 </p>
                 <ul className="space-y-0.5">
-                    {links.map(({ to, end, label, icon: Icon }) => (
+                    {NAV.map(({ to, end, label, icon: Icon }) => (
                         <li key={to}>
                             <NavLink
                                 to={to}

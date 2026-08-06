@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Google Ads Bot Access
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: AdsBot-Google-Mobile
+Allow: /
+
+Sitemap: https://www.podcastchartgrowth.com/sitemap.xml
